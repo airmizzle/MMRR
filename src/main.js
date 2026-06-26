@@ -27,6 +27,7 @@ const initialState = {
 };
 
 let state = normalizeState(loadState()) || structuredClone(initialState);
+let pendingStatChanges = {};
 
 const app = document.querySelector("#app");
 
@@ -72,7 +73,11 @@ function resetGame() {
 
 function changeStats(delta) {
   for (const [key, value] of Object.entries(delta)) {
-    state.stats[key] = clamp(state.stats[key] + value);
+    const before = state.stats[key] ?? 0;
+    const after = clamp(before + value);
+    state.stats[key] = after;
+    if (after > before) pendingStatChanges[key] = "up";
+    if (after < before) pendingStatChanges[key] = "down";
   }
 }
 
@@ -102,42 +107,39 @@ function syncStatus(value) {
 }
 
 function statRows() {
-  const rows = [
-    ["战绩", state.stats.record, "球队在联赛里的存在感"],
-    ["资金", state.stats.funds, "能不能维持这个小破队"],
-    ["球队士气", state.stats.morale, "队员是否相信峡光还能往前走"],
+  return [
+    { key: "record", label: "战绩", value: state.stats.record, text: "联赛存在感" },
+    { key: "funds", label: "资金", value: state.stats.funds, text: "小破队资源" },
+    { key: "morale", label: "士气", value: state.stats.morale, text: "球队相信度" },
+    { key: "sync", label: "同步", value: state.stats.sync, text: syncStatus(state.stats.sync), danger: state.stats.sync > 75 },
+    { key: "load", label: "负荷", value: state.stats.load, text: loadStatus(state.stats.load), danger: state.stats.load > 70 },
+    { key: "self", label: "自我", value: state.stats.self, text: selfStatus(state.stats.self) },
   ];
-
-  if (state.flags.metMT) {
-    rows.push(["投捕同步率", state.stats.sync, syncStatus(state.stats.sync), state.stats.sync > 75]);
-    rows.push(["满天负荷", state.stats.load, loadStatus(state.stats.load), true]);
-    rows.push(["满天自我", state.stats.self, selfStatus(state.stats.self)]);
-  }
-
-  return rows;
 }
 
 function shell(title, body, options = {}) {
   const rows = statRows()
-    .map(([label, value, text, danger]) => `
-      <div class="stat">
-        <div class="stat-label"><span>${label}</span><span>${value}</span></div>
-        <div class="bar"><div class="bar-fill ${danger && value > 70 ? "danger" : ""}" style="width: ${value}%"></div></div>
-        <div class="status-text">${text}</div>
+    .map((row) => {
+      const flash = pendingStatChanges[row.key] ? `flash-${pendingStatChanges[row.key]}` : "";
+      return `
+      <div class="stat ${flash} ${row.danger ? "stat-danger" : ""}">
+        <div class="stat-label"><span>${row.label}</span><span>${row.value}</span></div>
+        <div class="bar"><div class="bar-fill ${row.danger ? "danger" : ""}" style="width: ${row.value}%"></div></div>
+        <div class="status-text">${row.text}</div>
       </div>
-    `)
+    `;
+    })
     .join("");
 
   app.innerHTML = `
     <div class="shell">
-      <aside class="sidebar">
+      <header class="status-strip">
         <div class="brand">
           <div class="project">MMRR项目 Demo</div>
           <h1 class="title">峡之光</h1>
-          <p class="subtitle">棒球队经营模拟 + 战术选择 + 恋爱AVG</p>
         </div>
         <div class="stats">${rows}</div>
-      </aside>
+      </header>
       <section class="main-panel">
         <div class="topline">
           <div class="chapter">${title}</div>
@@ -147,6 +149,10 @@ function shell(title, body, options = {}) {
       </section>
     </div>
   `;
+
+  window.setTimeout(() => {
+    pendingStatChanges = {};
+  }, 900);
 }
 
 function renderMenu() {
