@@ -38,6 +38,7 @@ const initialState = {
     self: 15,
   },
   log: "",
+  endingOverride: null,
 };
 
 let state = normalizeState(loadState()) || structuredClone(initialState);
@@ -76,6 +77,7 @@ function normalizeState(saved) {
       morale: saved.stats?.morale ?? saved.stats?.team ?? fresh.stats.morale,
       sync: saved.stats?.sync ?? fresh.stats.sync,
     },
+    endingOverride: saved.endingOverride ?? fresh.endingOverride,
   };
 }
 
@@ -312,6 +314,7 @@ function renderEvent() {
   if (state.phase === "practice") return renderPracticeEvent();
   if (state.phase === "team-misread") return renderTeamMisreadEvent();
   if (state.phase === "yew-warning") return renderYewWarningEvent();
+  if (state.phase === "league-crisis") return renderLeagueCrisisEvent();
   if (state.phase === "bench-question") return renderBenchQuestionEvent();
   if (state.phase === "empty-field") return renderEmptyFieldEvent();
   if (state.phase === "report-late-night") return renderReportLateNightEvent();
@@ -340,8 +343,21 @@ function goToFinalOrWarning() {
     state.phase = "yew-warning";
     return;
   }
+  if (!canEnterLeagueMatch()) {
+    state.screen = "event";
+    state.phase = "league-crisis";
+    return;
+  }
   state.screen = "game";
   state.phase = "final-game";
+}
+
+function canEnterLeagueMatch() {
+  return state.stats.record >= 45 && state.stats.morale >= 40;
+}
+
+function canBurnMTToSaveMatch() {
+  return state.stats.record >= 30 && state.stats.morale >= 25;
 }
 
 function renderSnackEvent() {
@@ -505,6 +521,86 @@ function renderYewWarningEvent() {
       },
     ],
     "负荷警告"
+  );
+}
+
+function renderLeagueCrisisEvent() {
+  const recordGap = state.stats.record < 45;
+  const moraleGap = state.stats.morale < 40;
+  const reason = [
+    recordGap ? "战绩不够，峡光还没有把自己打到足够关键的位置。" : "",
+    moraleGap ? "球队士气不够，普通队员撑不住满天之外的部分。" : "",
+  ].filter(Boolean).join("\n");
+
+  choiceEvent(
+    "联赛危机：小破队撑不住",
+    `联赛强制推进到这里，但峡光的底子没有跟上。
+
+${reason}
+
+比赛还没进入你最想操控的局面，普通队员已经开始被对手压着打。守备慢半拍，打线推不动，休息区里没人说话。
+
+满天站在你身边，看向投手丘。
+
+他没有说“让我上”。但你知道，只要你比出暗号，他会去。`,
+    [
+      {
+        label: "燃烧满天，把比赛拖回来",
+        desc: "如果球队还没烂到底，他可以强行救场；代价会落在他身上。",
+        delta: {},
+        flags: ["mtBurnAttemptedInLeagueCrisis"],
+        result: canBurnMTToSaveMatch()
+          ? "你比出暗号。满天走上投手丘，把本来已经散掉的比赛一球一球拽回来。峡光还活着，但你听见紫阳在休息区用力合上了数据板。"
+          : "你比出暗号。满天走上投手丘，试图把整支队伍都拖回来。可是峡光已经烂得太深了。球落进你的手套时，比分没有被救回来，满天的脸色却先白了。",
+        next: () => {
+          if (canBurnMTToSaveMatch()) {
+            changeStats({ record: 10, sync: 10, load: 35, self: -8 });
+            addFlag("mtBurnedToSaveMatch");
+            state.screen = "game";
+            state.phase = "final-game";
+          } else {
+            changeStats({ load: 25, self: -10, sync: 5 });
+            addFlag("mtBurnedButMatchLost");
+            state.endingOverride = {
+              title: "Game Over：消失的王牌",
+              text: `峡光输了。
+
+不是输掉一场比赛那么简单，而是整个赛季在这里断掉。
+
+满天的项目评估没有通过。紫阳试图争取时间，但莫道集团的人比她更快。
+
+第二天，满天没有出现在训练场。
+
+他的储物柜被清空，投手丘上没有脚印。所有人都说那名外援只是离队了，只有你知道，他不是离队。
+
+他被回收了。`,
+            };
+            state.screen = "ending";
+          }
+        },
+      },
+      {
+        label: "不让满天补，承认峡光现在打不过",
+        desc: "不燃烧他，但这场联赛会直接断掉。",
+        delta: { record: -10, morale: -8, self: 3, load: -5 },
+        flags: ["refusedToBurnMTInLeagueCrisis"],
+        result: "你没有比暗号。满天看着你，像是不理解为什么明明还可以投，却要坐在这里看比赛输掉。",
+        next: () => {
+          state.endingOverride = {
+            title: "Game Over：没有奇迹的小破队",
+            text: `峡光输了。
+
+你保住了满天这一场的身体，却没能保住这个项目继续存在的舞台。
+
+战绩不够，士气不够，峡光没有成为能承载他的球队。
+
+赛季结束得很安静。几天后，满天的手续被莫道集团重新接走。没有新闻，没有告别，也没有下一场比赛。`,
+          };
+          state.screen = "ending";
+        },
+      },
+    ],
+    "联赛判定"
   );
 }
 
@@ -902,6 +998,8 @@ function renderResult() {
 }
 
 function endingData() {
+  if (state.endingOverride) return state.endingOverride;
+
   const { record, morale, sync, load, self } = state.stats;
   const choseCare = state.flags.mtAskedOnMound || state.flags.restedMT;
 
