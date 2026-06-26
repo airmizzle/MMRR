@@ -14,6 +14,20 @@ const initialState = {
     rayManagedMTRecovery: false,
     rayOverusedMTForWin: false,
     rayDecidedForMTBody: false,
+    rayLimitedMTPitchMix: false,
+    rayRiskyCallSuccess: false,
+    rayPlanExecutionFailed: false,
+    rayTestedMTBodyLimit: false,
+    rayDecidedForMTBodySnack: false,
+    rayManagedMTBody: false,
+    rayTrustedGloveOverData: false,
+    mtSnackEventSeen: false,
+    mtFirstPracticeSeen: false,
+    teamMisreadsMTSeen: false,
+    yewFirstLoadWarningSeen: false,
+    mtBenchedQuestionSeen: false,
+    emptyFieldCatchSeen: false,
+    rayReportLateNightSeen: false,
   },
   stats: {
     record: 25,
@@ -249,18 +263,379 @@ function renderStory() {
       "接住这颗球",
       () => {
         state.flags.metMT = true;
+        addFlag("mtMet");
+        addFlag("yewArrived");
         changeStats({ record: 5, morale: 5, self: 10, sync: 10 });
         state.log = "满天加入。投捕同步率进入面板。新行动已解锁：陪满天恢复、和满天谈谈。";
-        state.week = 3;
-        state.actionsLeft = 2;
-        state.screen = "manage";
-        state.phase = "week3";
+        state.screen = "event";
+        state.phase = "snack";
         saveState();
         render();
       }
     );
     return;
   }
+}
+
+function choiceEvent(title, text, choices, weekText = "事件") {
+  const buttons = choices
+    .map((choice, index) => `
+      <button class="choice-btn" data-choice="${index}">
+        <strong>${choice.label}</strong>
+        <span>${choice.desc}</span>
+      </button>
+    `)
+    .join("");
+
+  shell(title, `
+    <h2 class="screen-title">${title}</h2>
+    <div class="prose">${text}</div>
+    <div class="choices">${buttons}</div>
+    ${state.log ? `<div class="log">${state.log}</div>` : ""}
+  `, { weekText });
+
+  app.querySelectorAll("[data-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const choice = choices[Number(button.dataset.choice)];
+      if (choice.delta) changeStats(choice.delta);
+      if (choice.flags) choice.flags.forEach(addFlag);
+      state.log = choice.result;
+      choice.next();
+      saveState();
+      render();
+    });
+  });
+}
+
+function renderEvent() {
+  if (state.phase === "snack") return renderSnackEvent();
+  if (state.phase === "practice") return renderPracticeEvent();
+  if (state.phase === "team-misread") return renderTeamMisreadEvent();
+  if (state.phase === "yew-warning") return renderYewWarningEvent();
+  if (state.phase === "bench-question") return renderBenchQuestionEvent();
+  if (state.phase === "empty-field") return renderEmptyFieldEvent();
+  if (state.phase === "report-late-night") return renderReportLateNightEvent();
+}
+
+function goToPractice() {
+  state.screen = "event";
+  state.phase = "practice";
+}
+
+function goToTeamMisread() {
+  state.screen = "event";
+  state.phase = "team-misread";
+}
+
+function goToWeekFourManage() {
+  state.week = 4;
+  state.actionsLeft = 2;
+  state.screen = "manage";
+  state.phase = "week4";
+}
+
+function goToFinalOrWarning() {
+  if (state.stats.load > 35 && !state.flags.yewFirstLoadWarningSeen) {
+    state.screen = "event";
+    state.phase = "yew-warning";
+    return;
+  }
+  state.screen = "game";
+  state.phase = "final-game";
+}
+
+function renderSnackEvent() {
+  choiceEvent(
+    "日常：便利店门口",
+    `训练结束后，满天停在便利店门口。
+
+他看着货架上的零食，像在观察某种不明但强烈的信号源。队员已经走出去几步，他还站在自动门前，眼睛跟着彩色包装移动。
+
+你看了一眼明天的训练表，又看了一眼他手里的东西。
+
+紫阳的声音从背后飘过来：“别忘了，他明天要试投。”`,
+    [
+      {
+        label: "直接没收",
+        desc: "明天有投球训练。他不能随便吃这个。",
+        delta: { load: -2, self: -3, sync: -1 },
+        flags: ["mtSnackEventSeen", "mtSnackConfiscated", "rayDecidedForMTBodySnack"],
+        result: "你把零食从他手里拿走。满天没有反抗，只是低头看了看空掉的手，像是在确认某种规则。",
+        next: goToPractice,
+      },
+      {
+        label: "买一袋，但调整晚饭和训练",
+        desc: "允许他吃，但你会重新计算晚饭和恢复菜单。",
+        delta: { funds: -2, self: 2, sync: 2 },
+        flags: ["mtSnackEventSeen", "mtSnackCompromise", "rayManagedMTBody"],
+        result: "满天拿着零食看你，像是在确认这是不是一种许可。你已经在脑子里重排了晚饭、恢复菜单和明天的热身时间。",
+        next: goToPractice,
+      },
+      {
+        label: "问他为什么想吃",
+        desc: "你先不阻止，只问他为什么想要。",
+        delta: { self: 6, sync: 1, morale: -1 },
+        flags: ["mtSnackEventSeen", "mtAskedBodyWant"],
+        result: "满天想了很久。他说不清是饿，还是被颜色吸引，还是只是想知道那是什么味道。你意识到，他不是在任性。他是在用一种很笨的方式认识自己的身体。",
+        next: goToPractice,
+      },
+    ],
+    "日常"
+  );
+}
+
+function renderPracticeEvent() {
+  choiceEvent(
+    "练习赛：满天第一次队内登板",
+    `这不是正式比赛。没有观众，没有转播，没有排名压力。
+
+但队员们全部站在场边看。
+
+他们已经听说这个空降投手很强，也已经听说钟锐只看了三颗球就沉默了很久。
+
+满天站上投手丘，转了转球。他看向你，等你的暗号。`,
+    [
+      {
+        label: "直接测试完整球种",
+        desc: "你想知道这副身体到底能执行到什么程度。",
+        delta: { sync: 10, load: 18, self: -2, morale: 3 },
+        flags: ["mtFirstPracticeSeen", "mtFullPitchMixTested", "rayTestedMTBodyLimit"],
+        result: "第一颗变化球落进你的手套时，场边彻底安静下来。你听见某个队员低声骂了一句。不是不满，是被吓到了。满天看着你的手套，眼睛亮得过分。",
+        next: goToTeamMisread,
+      },
+      {
+        label: "只测试快速球和落点",
+        desc: "你暂时不碰最锋利的部分，先确认基础。",
+        delta: { sync: 6, load: 8, self: 2, morale: 5 },
+        flags: ["mtFirstPracticeSeen", "mtFastballControlTested"],
+        result: "满天的快速球一颗颗落进手套。没有花哨变化，但每颗球都像被钉在你想要的位置上。队员们开始小声讨论：如果只是这种球，他们也许还能理解。",
+        next: goToTeamMisread,
+      },
+      {
+        label: "让队员自由上场打",
+        desc: "不只测试满天，也测试队伍能不能面对他。",
+        delta: { morale: 8, sync: 4, load: 12, self: 3 },
+        flags: ["mtFirstPracticeSeen", "teamFacedMTPitching"],
+        result: "你让队员按平时节奏打。前三个打者几乎没有舒服挥棒。第四个打者勉强擦到球，跑回休息区时表情复杂得像刚看见天气预报变成了数学题。满天回头看你，像是在问：这样可以吗？",
+        next: goToTeamMisread,
+      },
+    ],
+    "练习赛"
+  );
+}
+
+function renderTeamMisreadEvent() {
+  choiceEvent(
+    "日常：队友误解满天",
+    `练习赛结束后，有队员在休息区小声说：“那家伙刚才是不是在嘲讽我？”
+
+满天坐在长椅另一端，认真擦着球。他刚才对三棒说“你的身体比你的球棒慢半拍”，语气非常平静。
+
+对他来说，那只是观察。
+
+对队友来说，那听起来像把人拆成零件。
+
+几个人看向你。`,
+    [
+      {
+        label: "替满天解释",
+        desc: "他不是在嘲讽。他只是不会说人话。",
+        delta: { morale: 4, sync: 3, self: -1 },
+        flags: ["teamMisreadsMTSeen", "rayExplainedMTToTeam"],
+        result: "你简单解释了满天的说话方式。队员们半信半疑，但至少没有继续把敌意堆到他身上。满天抬头看了你一眼，又低头擦球。",
+        next: goToWeekFourManage,
+      },
+      {
+        label: "让满天自己解释",
+        desc: "如果他要留在队里，他也得学着和队友说话。",
+        delta: { self: 6, morale: 3, sync: 1 },
+        flags: ["teamMisreadsMTSeen", "mtExplainedSelfToTeam"],
+        result: "你没有立刻开口。满天想了一会儿，对三棒说：“我不是讨厌你。我是说你的脚比手诚实。”休息区安静了两秒。然后有人笑出了声。",
+        next: goToWeekFourManage,
+      },
+      {
+        label: "用训练结果压过去",
+        desc: "与其解释，不如让他们承认他确实看得准。",
+        delta: { morale: 6, self: -4, sync: 2 },
+        flags: ["teamMisreadsMTSeen", "rayUsedMTAccuracyToConvinceTeam"],
+        result: "你把三棒刚才的挥棒录像调出来，逐帧指出满天说的“慢半拍”在哪里。队员闭嘴了。但满天看着屏幕，像是突然明白自己刚才被你拿来证明了一件事。",
+        next: goToWeekFourManage,
+      },
+    ],
+    "日常"
+  );
+}
+
+function renderYewWarningEvent() {
+  choiceEvent(
+    "日常：紫阳第一次负荷警告",
+    `紫阳把数据板放到你面前。
+
+她没有寒暄，也没有绕弯。
+
+“出手点偏了。只有一点，但已经偏了。”
+
+你看向牛棚。满天正在和队员说话，看起来比任何人都精神。
+
+紫阳说：“他兴奋的时候，比疲劳的时候更危险。”`,
+    [
+      {
+        label: "接受警告，降低下一场强度",
+        desc: "你承认紫阳的长期模型比你的临场欲望更可靠。",
+        delta: { load: -8, morale: 3, sync: -2 },
+        flags: ["yewFirstLoadWarningSeen", "yewWarningAccepted"],
+        result: "你把下一场的配球预案删掉一半。删到最后，你发现最难删的不是球种，而是你自己想接住它们的冲动。",
+        next: goToFinalOrWarning,
+      },
+      {
+        label: "要求更多数据",
+        desc: "你不是不信她。你只是想亲自确认。",
+        delta: { load: -3, morale: -2, sync: 1 },
+        flags: ["yewFirstLoadWarningSeen", "rayRequestedMoreLoadData"],
+        result: "紫阳盯着你看了三秒，还是把更详细的数据传给了你。你们在休息区吵了二十分钟，旁边队员一句都听不懂。",
+        next: goToFinalOrWarning,
+      },
+      {
+        label: "相信自己的接球手感",
+        desc: "他的球还在你的手套里。你认为自己能判断。",
+        delta: { sync: 4, load: 10, morale: -3 },
+        flags: ["yewFirstLoadWarningSeen", "yewWarningIgnored", "rayTrustedGloveOverData"],
+        result: "你没有改预案。紫阳收起数据板，声音冷得像球场夜风：“那你最好真的能负责。”",
+        next: goToFinalOrWarning,
+      },
+    ],
+    "负荷警告"
+  );
+}
+
+function renderBenchQuestionEvent() {
+  choiceEvent(
+    "赛后：我刚才不能投了吗？",
+    `比赛输了。
+
+替补投手没有撑住局面。队员们没有责怪谁，但休息区安静得过分。
+
+满天坐在你旁边，低头看着自己的手。
+
+过了一会儿，他问：“我刚才不能投了吗？”`,
+    [
+      {
+        label: "告诉他，这是保护",
+        desc: "你解释他的身体需要被管理。",
+        delta: { load: -5, self: -4, sync: -2 },
+        flags: ["mtBenchedQuestionSeen", "mtInterpretedBenchAsLimit"],
+        result: "满天点头。他理解了你的意思，但你不确定他理解的是“我被保护”，还是“我不够好用”。",
+        next: () => {
+          state.screen = "ending";
+        },
+      },
+      {
+        label: "告诉他，你还需要他下一场继续投",
+        desc: "你把换下他解释成更长远的战术安排。",
+        delta: { self: 2, sync: 4, load: -2 },
+        flags: ["mtBenchedQuestionSeen", "mtBenchedButNeededLater"],
+        result: "满天抬起头。“下一场还投给你？”你说，是。他的手指终于从球缝上松开一点。",
+        next: () => {
+          state.screen = "ending";
+        },
+      },
+      {
+        label: "问他刚才自己怎么感觉",
+        desc: "你不先给答案，让他回到自己的身体里。",
+        delta: { self: 7, sync: 2, load: -3 },
+        flags: ["mtBenchedQuestionSeen", "mtNamedBodyHeat"],
+        result: "满天低头想了很久。他说：“手指有点热。但是我看见你的手套，就忘了。”这不是一个让人安心的答案。",
+        next: () => {
+          state.screen = "ending";
+        },
+      },
+    ],
+    "结果事件"
+  );
+}
+
+function renderEmptyFieldEvent() {
+  choiceEvent(
+    "赛后：空球场加练",
+    `队员都走后，你和满天留在空球场。
+
+海风从外野吹进来，灯光把本垒附近照得很白。
+
+满天拿着球，问：“还接吗？”`,
+    [
+      {
+        label: "接几颗轻的",
+        desc: "只接几颗，不做训练，只确认手感。",
+        delta: { sync: 5, self: 3, load: 3 },
+        flags: ["emptyFieldCatchSeen", "emptyFieldSoftCatch"],
+        result: "满天投了几颗很轻的球。它们没有正式比赛里的锋利，却很安静地落进你的手套。你突然意识到，自己也喜欢这样的球。",
+        next: () => {
+          state.screen = "ending";
+        },
+      },
+      {
+        label: "拒绝，带他回家",
+        desc: "今晚不再投。你必须把“停止”也变成你们的默契。",
+        delta: { load: -5, self: 2, sync: -1 },
+        flags: ["emptyFieldCatchSeen", "emptyFieldWentHome"],
+        result: "满天看起来有点失望，但还是跟你离开球场。走到出口时，他突然问：“明天还可以投吗？”你说，明天看身体。",
+        next: () => {
+          state.screen = "ending";
+        },
+      },
+      {
+        label: "让他自己决定投什么",
+        desc: "不是训练菜单，不是比赛预案。只是他想投什么。",
+        delta: { self: 8, sync: 6, load: 5 },
+        flags: ["emptyFieldCatchSeen", "mtChoseEmptyFieldPitch"],
+        result: "满天站在投手丘上想了很久。最后他投了一颗直球。它不快，也不锋利，但你接住的时候，手套里有一种非常陌生的重量。",
+        next: () => {
+          state.screen = "ending";
+        },
+      },
+    ],
+    "结果事件"
+  );
+}
+
+function renderReportLateNightEvent() {
+  choiceEvent(
+    "日常：钟锐写报告熬夜",
+    `凌晨两点，你还在写报告。
+
+屏幕上是别队打线的拆解，桌边是峡光明天的训练表。
+
+满天从房间里出来，站在门口看你。
+
+“你也需要维护吗？”他问。`,
+    [
+      {
+        label: "让他回去睡",
+        desc: "你不需要被照顾。至少现在不需要。",
+        delta: { funds: 3, sync: -1, self: -1 },
+        flags: ["rayReportLateNightSeen", "rayRefusedMTCare"],
+        result: "你让他回去睡。满天在门口站了几秒，像是确认这条指令是否也需要执行，然后转身回房间。",
+        next: goToFinalOrWarning,
+      },
+      {
+        label: "让他坐一会儿",
+        desc: "你继续写，他坐在旁边。不是效率最高，但你没有赶他走。",
+        delta: { sync: 4, self: 2, morale: -1 },
+        flags: ["rayReportLateNightSeen", "mtSatWithRayReport"],
+        result: "满天坐在旁边看你写报告。你没有解释那些模型，他也没有问。房间里只有键盘声和他的呼吸。",
+        next: goToFinalOrWarning,
+      },
+      {
+        label: "关掉报告，明天再写",
+        desc: "钱重要，但你突然觉得今晚不适合继续。",
+        delta: { funds: -5, sync: 3, self: 3 },
+        flags: ["rayReportLateNightSeen", "rayStoppedReportForMT"],
+        result: "你关掉报告。满天看着黑下来的屏幕，又看向你，像是第一次发现你也会停止运转。",
+        next: goToFinalOrWarning,
+      },
+    ],
+    "日常"
+  );
 }
 
 const actions = [
@@ -378,8 +753,12 @@ function advanceFromManage() {
     state.phase = "week4";
     state.log = "满天在训练后把球递给你，问：下一场，我可以多投一点吗？";
   } else if (state.week === 4) {
-    state.screen = "game";
-    state.phase = "final-game";
+    if (state.flags.rayReportOverTraining && !state.flags.rayReportLateNightSeen) {
+      state.screen = "event";
+      state.phase = "report-late-night";
+    } else {
+      goToFinalOrWarning();
+    }
   } else {
     state.screen = "story";
     state.phase = "mt-arrival";
@@ -490,7 +869,15 @@ function resolveFinalGame(choice) {
   }
 
   state.flags.finalGameDone = true;
-  state.screen = "ending";
+  if (choice === "bench") {
+    state.screen = "event";
+    state.phase = "bench-question";
+  } else if ((choice === "ask" || choice === "soft") && state.stats.load < 85) {
+    state.screen = "event";
+    state.phase = "empty-field";
+  } else {
+    state.screen = "ending";
+  }
   state.log = text;
   saveState();
   render();
@@ -612,6 +999,7 @@ function renderEnding() {
 function render() {
   if (state.screen === "menu") renderMenu();
   if (state.screen === "story") renderStory();
+  if (state.screen === "event") renderEvent();
   if (state.screen === "manage") renderManage();
   if (state.screen === "game") renderGame();
   if (state.screen === "result") renderResult();
