@@ -32,6 +32,7 @@ const initialState = {
     mtCookingSeen: false,
     mosasaurInviteSeen: false,
     watchedMosasaurGame: false,
+    mosasaurConversationSeen: false,
     mtDebutGameDone: false,
     syncWarmBodySeen: false,
     syncSparePartsSeen: false,
@@ -103,6 +104,75 @@ function normalizeState(saved) {
   };
 }
 
+function encodeSaveCode() {
+  const payload = {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    state,
+  };
+  return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+}
+
+function decodeSaveCode(code) {
+  const payload = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
+  return normalizeState(payload.state || payload);
+}
+
+function showOverlay(title, body) {
+  const existing = app.querySelector(".overlay");
+  if (existing) existing.remove();
+  app.insertAdjacentHTML("beforeend", `
+    <div class="overlay">
+      <div class="overlay-panel">
+        <div class="overlay-head">
+          <strong>${title}</strong>
+          <button class="tiny-tool" data-close-overlay>关闭</button>
+        </div>
+        <div class="overlay-body">${body}</div>
+      </div>
+    </div>
+  `);
+  app.querySelector("[data-close-overlay]").addEventListener("click", () => {
+    app.querySelector(".overlay")?.remove();
+  });
+}
+
+function exportSaveCode() {
+  const code = encodeSaveCode();
+  showOverlay("导出存档", `
+    <p>复制这段存档码，发给自己或朋友。之后可以用“导入”从这里继续。</p>
+    <textarea class="save-code" readonly>${code}</textarea>
+    <button class="primary-btn compact" data-copy-save>复制存档码</button>
+  `);
+  app.querySelector("[data-copy-save]").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      state.log = "存档码已复制。";
+    } catch {
+      state.log = "复制失败，可以手动选中存档码复制。";
+    }
+    saveState();
+    render();
+  });
+}
+
+function importSaveCode() {
+  const code = window.prompt("粘贴存档码：");
+  if (!code) return;
+  try {
+    const imported = decodeSaveCode(code);
+    if (!imported) throw new Error("empty save");
+    state = imported;
+    state.log = "存档已导入。";
+    saveState();
+    render();
+  } catch {
+    state.log = "存档码无法读取。";
+    saveState();
+    render();
+  }
+}
+
 function resetGame() {
   state = structuredClone(initialState);
   saveState();
@@ -123,6 +193,118 @@ function addFlag(name) {
   state.flags[name] = true;
 }
 
+function pickLine(lines) {
+  return lines[Math.floor(Date.now() / 1000) % lines.length];
+}
+
+function getDialogue(speaker) {
+  const s = state.stats;
+  const f = state.flags;
+  if (speaker === "mt") {
+    if (!f.metMT) return "投手丘上还没有那个会把球精准投进你手套的人。";
+    if (s.sync <= 10) return "如果我自己能投好，你是不是就不用管我了？";
+    if (s.load >= 70) return "手指有点热。但如果你比暗号，我还是会投。";
+    if (s.self <= 20) return "你告诉我怎么投就可以。我会投进去。";
+    if (s.sync >= 40) return "有时候你还没比暗号，我就知道你想让我投什么。";
+    return pickLine([
+      "便利店的灯很亮。比实验室亮得乱一点。",
+      "球落进你手套里的声音，比数据提示音好听。",
+      "今天可以投吗？不投也可以。我只是先问一下。",
+      "峡光的海风很咸。实验室里没有这种味道。",
+    ]);
+  }
+
+  if (speaker === "yew") {
+    if (s.funds <= 5) return "我建议你现在不要打开账本。真的。";
+    if (s.load >= 65) return "满天的出手点在漂。你最好不要用“手感”解释所有问题。";
+    if (s.record < 40 || s.morale < 35) return "下一场不是靠漂亮配球就能解决。峡光自己也得像支球队。";
+    return pickLine([
+      "莫道集团给钱很快，收东西的时候也很快。",
+      "你不是不懂风险。你只是经常觉得自己能把风险接住。",
+      "别用小破队当借口。破和不改是两件事。",
+      "满天不是普通投手。你最好记得这句话的前半句和后半句。",
+    ]);
+  }
+
+  if (s.morale <= 20) return "钟哥，大家不是不想赢，就是有点……不知道该靠谁赢。";
+  if (s.record < 35) return "下一场对面不会因为咱们球场破就手下留情吧？";
+  if (s.funds <= 8) return "我刚才看见紫阳姐在算车费。客场不会要我们自己骑车去吧。";
+  return pickLine([
+    "峡光这个球场吧，灯坏的时候比亮的时候更有主场感。",
+    "满天说话怪是怪，但他说我挥棒慢半拍，居然真对。",
+    "钟哥，你有时候看战术板的眼神，比看活人认真。",
+    "要是这队真赢了，观众席那四十个人能吹一辈子。",
+  ]);
+}
+
+function showDialogue(speaker) {
+  const names = { mt: "满天", yew: "紫阳", player: "队员" };
+  showOverlay(names[speaker] || "对话", `
+    <div class="talk-card">
+      <div class="talk-avatar">${(names[speaker] || "?").slice(0, 1)}</div>
+      <div class="talk-text">“${getDialogue(speaker)}”</div>
+    </div>
+  `);
+}
+
+function inventoryItems() {
+  const items = [];
+  if (state.flags.watchedMosasaurGame) {
+    items.push({
+      name: "沧龙队票根",
+      text: "满天看见了江陵和白城的比赛。以后或许能接上那条沟通线。",
+    });
+  }
+  if (state.flags.mtExtraBodyCheck) {
+    items.push({
+      name: "满天的额外检查记录",
+      text: "不是为了比赛做的检查。记录里有一些还没被说出口的身体秘密。",
+    });
+  }
+  if (state.flags.fieldRepaired) {
+    items.push({
+      name: "旧球场整修清单",
+      text: "坏灯、漏水和松动的围网被一项项划掉。峡光开始像一个可以回来的地方。",
+    });
+  }
+  if (state.flags.yewDataBackup || state.flags.yewWarningAccepted || state.flags.rayRequestedMoreLoadData) {
+    items.push({
+      name: "紫阳的数据备份",
+      text: "关于满天负荷的早期记录。它提醒你，有些危险不是靠手套能接住的。",
+    });
+  }
+  if (state.flags.mtChoseMenuWithRay) {
+    items.push({
+      name: "满天选过的菜单",
+      text: "颜色、味道和身体感觉拼成的一张菜单。很难说它算不算营养学。",
+    });
+  }
+  return items;
+}
+
+function inventoryNames() {
+  return inventoryItems().map((item) => item.name);
+}
+
+function itemGainText(beforeNames) {
+  const before = new Set(beforeNames);
+  const gained = inventoryNames().filter((name) => !before.has(name));
+  return gained.length ? `\n\n获得持有物：${gained.join("、")}` : "";
+}
+
+function showInventory() {
+  const items = inventoryItems();
+  const body = items.length
+    ? `<div class="item-list">${items.map((item) => `
+        <div class="item-card">
+          <strong>${item.name}</strong>
+          <span>${item.text}</span>
+        </div>
+      `).join("")}</div>`
+    : `<p>还没有获得持有物。某些比赛、日常和隐藏事件会留下可以被记录的东西。</p>`;
+  showOverlay("持有物", body);
+}
+
 const hiddenReturnRoutes = {
   returnToManage,
   goToPractice,
@@ -132,6 +314,7 @@ const hiddenReturnRoutes = {
   goToYewImprovement,
   goToMTCooking,
   goToMosasaurGame,
+  goToMosasaurAfterGame,
 };
 
 function returnToManage() {
@@ -260,7 +443,15 @@ function shell(title, body, options = {}) {
           <h1 class="title">峡之光</h1>
         </div>
         <div class="stats">${rows}</div>
-        <button class="tiny-reset" data-reset title="从头开始">重开</button>
+        <div class="toolbox">
+          <button class="tiny-tool portrait-tool" data-talk="mt" title="和满天说话">满</button>
+          <button class="tiny-tool portrait-tool" data-talk="yew" title="和紫阳说话">紫</button>
+          <button class="tiny-tool portrait-tool" data-talk="player" title="和队员说话">队</button>
+          <button class="tiny-tool" data-inventory title="查看持有物">持有</button>
+          <button class="tiny-tool" data-export title="导出存档码">导出</button>
+          <button class="tiny-tool" data-import title="导入存档码">导入</button>
+          <button class="tiny-tool danger-tool" data-reset title="从头开始">重开</button>
+        </div>
       </header>
       <section class="main-panel">
         <div class="topline">
@@ -276,6 +467,12 @@ function shell(title, body, options = {}) {
   if (resetButton) {
     resetButton.addEventListener("click", resetGame);
   }
+  app.querySelectorAll("[data-talk]").forEach((button) => {
+    button.addEventListener("click", () => showDialogue(button.dataset.talk));
+  });
+  app.querySelector("[data-inventory]")?.addEventListener("click", showInventory);
+  app.querySelector("[data-export]")?.addEventListener("click", exportSaveCode);
+  app.querySelector("[data-import]")?.addEventListener("click", importSaveCode);
 
   window.setTimeout(() => {
     pendingStatChanges = {};
@@ -296,6 +493,7 @@ function renderMenu() {
         <div class="primary-row">
           <button class="primary-btn" data-action="start">新游戏</button>
           <button class="choice-btn" data-action="continue"><strong>继续</strong><span>读取本地进度</span></button>
+          <button class="choice-btn" data-action="import"><strong>导入</strong><span>粘贴朋友发来的存档码</span></button>
         </div>
       </div>
     </section>
@@ -311,9 +509,11 @@ function renderMenu() {
 
   app.querySelector('[data-action="continue"]').addEventListener("click", () => {
     const saved = loadState();
-    if (saved && saved.screen !== "menu") state = saved;
+    if (saved && saved.screen !== "menu") state = normalizeState(saved);
     render();
   });
+
+  app.querySelector('[data-action="import"]').addEventListener("click", importSaveCode);
 }
 
 function storyScreen(title, text, nextLabel, next) {
@@ -411,6 +611,7 @@ function choiceEvent(title, text, choices, weekText = "事件") {
   app.querySelectorAll("[data-choice]").forEach((button) => {
     button.addEventListener("click", () => {
       const choice = choices[Number(button.dataset.choice)];
+      const beforeItems = inventoryNames();
       if (choice.cost && state.stats.funds < choice.cost) {
         state.log = `资金不足。你看了一眼账户余额，把这个方案从脑子里划掉。`;
         if (choice.costFailDelta) changeStats(choice.costFailDelta);
@@ -422,7 +623,7 @@ function choiceEvent(title, text, choices, weekText = "事件") {
       if (choice.cost) changeStats({ funds: -choice.cost });
       if (choice.delta) changeStats(choice.delta);
       if (choice.flags) choice.flags.forEach(addFlag);
-      state.log = choice.result;
+      state.log = `${choice.result}${itemGainText(beforeItems)}`;
       if (!maybeTriggerSyncHiddenEvent(choice.next)) choice.next();
       saveState();
       render();
@@ -442,6 +643,7 @@ function renderEvent() {
   if (state.phase === "yew-improvement") return renderYewImprovementEvent();
   if (state.phase === "mt-cooking") return renderMTCookingEvent();
   if (state.phase === "mosasaur-game") return renderMosasaurGameEvent();
+  if (state.phase === "mosasaur-after-game") return renderMosasaurAfterGameEvent();
   if (state.phase === "sync-warm-body") return renderSyncWarmBodyEvent();
   if (state.phase === "sync-spare-parts") return renderSyncSparePartsEvent();
   if (state.phase === "sync-can-still-pitch") return renderSyncCanStillPitchEvent();
@@ -507,6 +709,11 @@ function goToMosasaurGame() {
     return;
   }
   goToFinalOrWarning();
+}
+
+function goToMosasaurAfterGame() {
+  state.screen = "event";
+  state.phase = "mosasaur-after-game";
 }
 
 function canEnterLeagueMatch() {
@@ -656,7 +863,7 @@ function renderYewWarningEvent() {
         label: "接受警告，降低下一场强度",
         desc: "你承认紫阳的长期模型比你的临场欲望更可靠。",
         delta: { load: -8, morale: 3, sync: -2 },
-        flags: ["yewFirstLoadWarningSeen", "yewWarningAccepted"],
+        flags: ["yewFirstLoadWarningSeen", "yewWarningAccepted", "yewDataBackup"],
         result: "你把下一场的配球预案删掉一半。删到最后，你发现最难删的不是球种，而是你自己想接住它们的冲动。",
         next: goToFinalOrWarning,
       },
@@ -664,7 +871,7 @@ function renderYewWarningEvent() {
         label: "要求更多数据",
         desc: "你不是不信她。你只是想亲自确认。",
         delta: { load: -3, morale: -2, sync: 1 },
-        flags: ["yewFirstLoadWarningSeen", "rayRequestedMoreLoadData"],
+        flags: ["yewFirstLoadWarningSeen", "rayRequestedMoreLoadData", "yewDataBackup"],
         result: "紫阳盯着你看了三秒，还是把更详细的数据传给了你。你们在休息区吵了二十分钟，旁边队员一句都听不懂。",
         next: goToFinalOrWarning,
       },
@@ -1014,7 +1221,7 @@ function renderMosasaurGameEvent() {
         delta: { self: 4, sync: 3, record: 4 },
         flags: ["mosasaurInviteSeen", "watchedMosasaurGame", "lingChengLineOpened"],
         result: "你带满天去了沧龙主场。江陵在九局下半挥出一记漂亮安打，白城在待打区笑得像早就知道会这样。满天看完以后说：“他们也像一组投捕吗？”你决定暂时不回答。",
-        next: goToFinalOrWarning,
+        next: goToMosasaurAfterGame,
       },
       {
         label: "自己去看，让满天休息",
@@ -1044,6 +1251,50 @@ function renderMosasaurGameEvent() {
       },
     ],
     "日常"
+  );
+}
+
+function renderMosasaurAfterGameEvent() {
+  choiceEvent(
+    "日常：沧龙赛后",
+    `比赛结束后，沧龙主场的灯还亮着。
+
+江陵从球员通道那边走过来，手里还拎着打击手套。他看见你，第一句话是：“钟锐，你终于舍得带小朋友来看真正的棒球了？”
+
+白城慢一步跟在后面，先看了满天一眼，又看向你。
+
+“新投手？”白城问。
+
+满天站在你身边，很认真地纠正：“我是满天。”
+
+江陵笑了一声。白城没有笑，只是说：“那你最好别只看钟锐的手套。投手如果只看接球手，会错过很多东西。”`,
+    [
+      {
+        label: "和江陵斗嘴",
+        desc: "他嘴太欠，不回一句很难受。",
+        delta: {},
+        flags: ["mosasaurConversationSeen", "rayBickeredWithLingCheng"],
+        result: "你和江陵互相嘲了三分钟。满天在旁边听得很认真，最后小声问：“这是以前队友之间的交流方式吗？”白城说：“不是，主要是江陵有病。”",
+        next: goToFinalOrWarning,
+      },
+      {
+        label: "问白城刚才那句话是什么意思",
+        desc: "你想知道他是不是看出了什么。",
+        delta: {},
+        flags: ["mosasaurConversationSeen", "rayAskedBaiChengAboutPitcher"],
+        result: "白城看着满天，说投手不能只把自己交给暗号。江陵在旁边插嘴：“他说得委婉，意思是你别把人养成球形遥控器。”你没有立刻反驳。",
+        next: goToFinalOrWarning,
+      },
+      {
+        label: "带满天先走",
+        desc: "今晚到这里就够了。",
+        delta: {},
+        flags: ["mosasaurConversationSeen", "rayLeftMosasaurEarlyWithMT"],
+        result: "你没有让对话继续。走出球场时，满天回头看了一眼沧龙的灯。过了一会儿，他问：“以后我也会有那样的队友吗？”",
+        next: goToFinalOrWarning,
+      },
+    ],
+    "沧龙赛后"
   );
 }
 
@@ -1232,6 +1483,7 @@ const actions = [
     title: "整修球场",
     desc: "夕阳很好看，但坏灯和漏水会实打实影响比赛。",
     delta: { funds: -15, morale: 5, record: 5 },
+    flag: "fieldRepaired",
     log: "旧球场终于少了几个能让人分心的问题。它仍然破，但开始像主场。",
   },
   {
@@ -1319,11 +1571,12 @@ function takeAction(id) {
   const action = actions.find((item) => item.id === id);
   if (!action) return;
 
+  const beforeItems = inventoryNames();
   changeStats(action.delta);
   if (action.flag) state.flags[action.flag] = true;
   if (action.flags) action.flags.forEach(addFlag);
   state.actionsLeft -= 1;
-  state.log = action.log;
+  state.log = `${action.log}${itemGainText(beforeItems)}`;
   maybeTriggerSyncHiddenEvent(returnToManage);
   saveState();
   render();
