@@ -595,13 +595,23 @@ button:hover {
     font-size: 11px;
   }
 
+  .stat-label span:first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .bar {
     height: 4px;
     margin-top: 3px;
   }
 
   .status-text {
-    display: none;
+    display: block;
+    margin-top: 2px;
+    font-size: 10px;
+    line-height: 1;
   }
 
   .toolbox {

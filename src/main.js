@@ -189,6 +189,12 @@ function changeStats(delta) {
   }
 }
 
+function actionCost(action) {
+  if (action.cost) return action.cost;
+  const fundDelta = action.delta?.funds || 0;
+  return fundDelta < 0 ? Math.abs(fundDelta) : 0;
+}
+
 function addFlag(name) {
   state.flags[name] = true;
 }
@@ -392,32 +398,48 @@ function registerMatchLoss(amount = -8) {
 function loadStatus(value) {
   if (value <= 30) return "稳定";
   if (value <= 55) return "发热";
-  if (value <= 75) return "过载边缘";
-  return "危险";
+  if (value <= 75) return "过载";
+  return "崩溃";
 }
 
 function selfStatus(value) {
-  if (value <= 25) return "等待暗号";
-  if (value <= 50) return "开始提问";
-  if (value <= 75) return "偶尔摇头";
-  return "知道自己想投什么";
+  if (value <= 30) return "空心";
+  if (value <= 65) return "摇摆";
+  return "自得";
 }
 
 function syncStatus(value) {
-  if (value <= 20) return "陌生的好球";
-  if (value <= 45) return "开始咬合";
-  if (value <= 70) return "共振";
-  return "危险共生";
+  if (value <= 25) return "陌生";
+  if (value <= 60) return "咬合";
+  return "共振";
+}
+
+function recordStatus(value) {
+  if (value <= 35) return "破烂";
+  if (value <= 65) return "关注";
+  return "黑马";
+}
+
+function fundsStatus(value) {
+  if (value <= 15) return "穷困";
+  if (value <= 55) return "稳定";
+  return "充足";
+}
+
+function moraleStatus(value) {
+  if (value <= 30) return "低迷";
+  if (value <= 65) return "平稳";
+  return "亢奋";
 }
 
 function statRows() {
   return [
-    { key: "record", label: "战绩", value: state.stats.record, text: "联赛存在感" },
-    { key: "funds", label: "资金", value: state.stats.funds, text: "小破队资源" },
-    { key: "morale", label: "士气", value: state.stats.morale, text: "球队相信度" },
-    { key: "sync", label: "同步", value: state.stats.sync, text: syncStatus(state.stats.sync), danger: state.stats.sync > 75 },
-    { key: "load", label: "负荷", value: state.stats.load, text: loadStatus(state.stats.load), danger: state.stats.load > 70 },
-    { key: "self", label: "自我", value: state.stats.self, text: selfStatus(state.stats.self) },
+    { key: "record", label: "联赛战绩", value: state.stats.record, text: recordStatus(state.stats.record) },
+    { key: "funds", label: "资金", value: state.stats.funds, text: fundsStatus(state.stats.funds) },
+    { key: "morale", label: "球队士气", value: state.stats.morale, text: moraleStatus(state.stats.morale) },
+    { key: "sync", label: "投捕同步率", value: state.stats.sync, text: syncStatus(state.stats.sync), danger: state.stats.sync > 75 },
+    { key: "load", label: "王牌压力值", value: state.stats.load, text: loadStatus(state.stats.load), danger: state.stats.load > 70 },
+    { key: "self", label: "王牌自洽值", value: state.stats.self, text: selfStatus(state.stats.self) },
   ];
 }
 
@@ -1191,11 +1213,10 @@ function renderMTCookingEvent() {
       },
       {
         label: "没时间做，随便解决",
-        desc: "少花一点钱。今晚先这样糊弄过去。",
-        cost: 1,
-        delta: { load: 5, sync: -2 },
+        desc: "不花钱。今晚先这样糊弄过去。",
+        delta: { load: 6, sync: -3, self: -1 },
         flags: ["mtCookingSeen", "mtMealHandledCasually"],
-        result: "你随便解决了晚饭。满天没有抱怨，但吃完以后还是看了你一会儿。那不是责怪，更像是不明白为什么今天这件事没有被认真安排。",
+        result: "你翻出库存里剩下的东西，随便解决了晚饭。满天没有抱怨，但吃完以后还是看了你一会儿。那不是责怪，更像是不明白为什么今天这件事没有被认真安排。",
         next: goToMosasaurGame,
       },
     ],
@@ -1570,6 +1591,15 @@ function takeAction(id) {
   }
   const action = actions.find((item) => item.id === id);
   if (!action) return;
+
+  const cost = actionCost(action);
+  if (cost && state.stats.funds < cost) {
+    state.log = "资金不足。你看了一眼账户余额，把这个经营方案暂时划掉。";
+    pendingStatChanges.funds = "down";
+    saveState();
+    render();
+    return;
+  }
 
   const beforeItems = inventoryNames();
   changeStats(action.delta);
