@@ -32,6 +32,7 @@ const initialState = {
     mtCookingSeen: false,
     mosasaurInviteSeen: false,
     watchedMosasaurGame: false,
+    mtDebutGameDone: false,
   },
   stats: {
     record: 25,
@@ -403,6 +404,14 @@ function goToWeekFourManage() {
   state.actionsLeft = 2;
   state.screen = "manage";
   state.phase = "week4";
+}
+
+function goToWeekFiveManage(logText = "满天的第一场正式登板结束后，峡光队突然变得像一支会被认真研究的球队。你得重新安排下一周。") {
+  state.week = 5;
+  state.actionsLeft = 2;
+  state.screen = "manage";
+  state.phase = "week5";
+  state.log = logText;
 }
 
 function goToFinalOrWarning() {
@@ -1065,6 +1074,12 @@ function manageCopy() {
 峡光队不是一支等待奇迹的队伍。它甚至还没有资格等待奇迹。`;
   }
 
+  if (state.week >= 5) {
+    return `满天已经在正式联赛里投过球。对手会研究他，队友会依赖他，莫道集团也会重新计算他的价值。
+
+这周的经营不只是补状态。你是在决定下一场比赛里，峡光到底是一支球队，还是一只伸向满天的手。`;
+  }
+
   return `满天加入以后，一切都变得更容易，也更危险。
 
 你脑子里的配球终于有人能执行。问题是，那个人不是一台机器。他会发热，会沉默，会因为你接住他的球而继续想投。`;
@@ -1099,6 +1114,8 @@ function advanceFromManage() {
     state.phase = "week4";
     state.log = "满天在训练后把球递给你，问：下一场，我可以多投一点吗？";
   } else if (state.week === 4) {
+    openLeagueIntro("mt-debut");
+  } else if (state.week === 5) {
     if (state.flags.rayReportOverTraining && !state.flags.rayReportLateNightSeen) {
       state.screen = "event";
       state.phase = "report-late-night";
@@ -1116,6 +1133,8 @@ function advanceFromManage() {
 function renderGame() {
   if (state.phase === "first-game") {
     renderFirstGame();
+  } else if (state.phase === "mt-debut-game") {
+    renderMTDebutGame();
   } else if (state.phase === "final-offense") {
     renderFinalOffense();
   } else if (state.phase === "final-defense") {
@@ -1142,7 +1161,12 @@ function openLeagueIntro(type) {
 }
 
 function renderLeagueIntro() {
-  const matchName = state.currentMatchType === "first" ? "没有满天的联赛" : "关键联赛";
+  const matchNames = {
+    first: "没有满天的联赛",
+    "mt-debut": "满天首次正式登板",
+    final: "关键联赛",
+  };
+  const matchName = matchNames[state.currentMatchType] || "关键联赛";
   shell("联赛日", `
     <h2 class="screen-title">独立联盟联赛 第 ${state.leagueMatchNo} 场</h2>
     <div class="prose">峡光队 vs ${state.currentOpponent}
@@ -1161,6 +1185,9 @@ ${matchName}
     if (state.currentMatchType === "first") {
       state.screen = "game";
       state.phase = "first-game";
+    } else if (state.currentMatchType === "mt-debut") {
+      state.screen = "game";
+      state.phase = "mt-debut-game";
     } else if (!canEnterLeagueMatch()) {
       state.crisisReturnPhase = "final-offense";
       state.screen = "event";
@@ -1222,6 +1249,65 @@ function resolveFirstGame(choice) {
   state.screen = "result";
   state.phase = "first-result";
   state.log = text;
+  saveState();
+  render();
+}
+
+function renderMTDebutGame() {
+  shell("比赛：满天首次登板", `
+    <h2 class="screen-title">四局下半，满天走上投手丘</h2>
+    <div class="prose">峡光和对手咬到 2:2。
+
+满天第一次在正式联赛里站到投手丘上。看台很小，风很大，可所有人的视线都落在他的手上。
+
+你知道他能把球投进你的手套。问题是，今天这场比赛，你要让整个队伍怎么认识他。</div>
+    <div class="choices">
+      <button class="choice-btn" data-choice="show"><strong>让满天完整压制</strong><span>直接用他的球把比赛拿回来。</span></button>
+      <button class="choice-btn" data-choice="team"><strong>限制球种，让队友守起来</strong><span>满天负责关键位置，其他人也必须接住比赛。</span></button>
+      <button class="choice-btn" data-choice="ask"><strong>让满天自己说想怎么投</strong><span>你给暗号，但先听他的判断。</span></button>
+      <button class="choice-btn" data-choice="early"><strong>提前换下</strong><span>把他的第一场正式登板停在还能停的时候。</span></button>
+    </div>
+  `, { weekText: `${state.currentOpponent} · 满天登板` });
+
+  app.querySelectorAll("[data-choice]").forEach((button) => {
+    button.addEventListener("click", () => resolveMTDebutGame(button.dataset.choice));
+  });
+}
+
+function resolveMTDebutGame(choice) {
+  let text = "";
+  if (choice === "show") {
+    changeStats({ record: 15, sync: 8, load: 25, self: -3, morale: 2 });
+    addFlag("rayShowedMTPower");
+    registerMatchWin(0);
+    text = "你没有隐藏满天。连续三振之后，休息区像被点亮了一下。峡光赢下比赛，但你也第一次清楚看见：胜利会让所有人更想继续用他。";
+  } else if (choice === "team") {
+    changeStats({ record: 8, morale: 6, sync: 4, load: 12, self: 2 });
+    addFlag("rayMadeTeamProtectMT");
+    registerMatchWin(0);
+    text = "你压住了满天的球种，让守备自己处理能处理的球。过程不漂亮，但峡光赢了。队员们开始明白，满天不是用来替他们消失的。";
+  } else if (choice === "ask") {
+    changeStats({ record: 5, morale: 2, sync: 6, load: 15, self: 8 });
+    state.flags.askedMT = true;
+    addFlag("mtDebutAskedOwnPitch");
+    registerMatchWin(0);
+    text = "你在投手丘上问满天想怎么投。他看了你一会儿，说：我想试一颗直球。球落进手套，峡光赢得有点惊险，但满天第一次不像只是在等待暗号。";
+  } else {
+    changeStats({ record: -6, morale: 2, sync: -4, load: -12, self: -2 });
+    addFlag("rayPulledMTDebutEarly");
+    registerMatchLoss(0);
+    text = "你提前换下满天。替补投手没能守住比分，峡光输了。满天没有抱怨，只是一直看着投手丘，像是不确定自己到底是被保护，还是被否定。";
+  }
+
+  state.flags.mtDebutGameDone = true;
+  state.log = text;
+  if (state.endingOverride) {
+    state.screen = "ending";
+  } else {
+    goToWeekFiveManage(`${text}
+
+满天的第一场正式登板结束后，峡光队突然变得像一支会被认真研究的球队。你得重新安排下一周。`);
+  }
   saveState();
   render();
 }
