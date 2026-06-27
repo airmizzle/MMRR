@@ -551,6 +551,23 @@ function storyScreen(title, text, nextLabel, next) {
   app.querySelector("[data-next]").addEventListener("click", next);
 }
 
+function outcomeScreen(title, text, next, weekText = "结果", options = {}) {
+  shell(title, `
+    <h2 class="screen-title">${title}</h2>
+    <div class="prose">${text}</div>
+    <div class="primary-row">
+      <button class="primary-btn" data-outcome-next>继续</button>
+    </div>
+  `, { weekText });
+
+  app.querySelector("[data-outcome-next]").addEventListener("click", () => {
+    if (options.clearLogBeforeNext) state.log = "";
+    next();
+    saveState();
+    render();
+  });
+}
+
 function renderStory() {
   if (state.phase === "intro") {
     storyScreen(
@@ -647,9 +664,9 @@ function choiceEvent(title, text, choices, weekText = "事件") {
       if (choice.delta) changeStats(choice.delta);
       if (choice.flags) choice.flags.forEach(addFlag);
       state.log = `${choice.result}${itemGainText(beforeItems)}`;
-      if (!maybeTriggerSyncHiddenEvent(choice.next)) choice.next();
-      saveState();
-      render();
+      outcomeScreen(title, state.log, () => {
+        if (!maybeTriggerSyncHiddenEvent(choice.next)) choice.next();
+      }, weekText, { clearLogBeforeNext: true });
     });
   });
 }
@@ -1821,8 +1838,10 @@ function resolveFirstGame(choice) {
   state.screen = "result";
   state.phase = "first-result";
   state.log = text;
-  saveState();
-  render();
+  outcomeScreen("赛中结果", state.log, () => {
+    state.screen = "result";
+    state.phase = "first-result";
+  }, "比赛结果");
 }
 
 function renderMTDebutGame() {
@@ -1873,15 +1892,13 @@ function resolveMTDebutGame(choice) {
 
   state.flags.mtDebutGameDone = true;
   state.log = text;
-  if (state.endingOverride) {
-    state.screen = "ending";
-  } else {
-    goToWeekFiveManage(`${text}
-
-满天的第一场正式登板结束后，峡光队突然变得像一支会被认真研究的球队。你得重新安排下一周。`);
-  }
-  saveState();
-  render();
+  outcomeScreen("赛中结果", state.log, () => {
+    if (state.endingOverride) {
+      state.screen = "ending";
+    } else {
+      goToWeekFiveManage("满天的第一场正式登板结束后，峡光队突然变得像一支会被认真研究的球队。你得重新安排下一周。");
+    }
+  }, "比赛结果", { clearLogBeforeNext: true });
 }
 
 function renderFinalOffense() {
@@ -1929,12 +1946,12 @@ function resolveFinalOffense(choice) {
     }
   }
 
-  if (!checkMoraleCrisis("final-defense")) {
-    state.screen = "game";
-    state.phase = "final-defense";
-  }
-  saveState();
-  render();
+  outcomeScreen("赛中结果", state.log, () => {
+    if (!checkMoraleCrisis("final-defense")) {
+      state.screen = "game";
+      state.phase = "final-defense";
+    }
+  }, `${state.currentOpponent} · 进攻`, { clearLogBeforeNext: true });
 }
 
 function renderFinalDefense() {
@@ -1972,12 +1989,12 @@ function resolveFinalDefense(choice) {
     state.log = "你让满天多用三振解决。对手挥空，休息区松了一口气。可队员们也清楚，这一局不是他们守下来的。";
   }
 
-  if (!checkMoraleCrisis("final-game")) {
-    state.screen = "game";
-    state.phase = "final-game";
-  }
-  saveState();
-  render();
+  outcomeScreen("赛中结果", state.log, () => {
+    if (!checkMoraleCrisis("final-game")) {
+      state.screen = "game";
+      state.phase = "final-game";
+    }
+  }, `${state.currentOpponent} · 守备`, { clearLogBeforeNext: true });
 }
 
 function renderFinalGame() {
@@ -2030,28 +2047,28 @@ function resolveFinalGame(choice) {
   }
 
   state.flags.finalGameDone = true;
-  if (state.endingOverride) {
-    state.screen = "ending";
-  } else if (choice === "bench") {
-    state.screen = "event";
-    state.phase = "bench-question";
-  } else if ((choice === "ask" || choice === "soft") && state.stats.load < 85) {
-    state.screen = "event";
-    state.phase = "empty-field";
-  } else {
-    state.screen = "ending";
-  }
   state.log = text;
-  saveState();
-  render();
+  outcomeScreen("赛中结果", state.log, () => {
+    if (state.endingOverride) {
+      state.screen = "ending";
+    } else if (choice === "bench") {
+      state.log = "";
+      state.screen = "event";
+      state.phase = "bench-question";
+    } else if ((choice === "ask" || choice === "soft") && state.stats.load < 85) {
+      state.log = "";
+      state.screen = "event";
+      state.phase = "empty-field";
+    } else {
+      state.screen = "ending";
+    }
+  }, "峡光关键战");
 }
 
 function renderResult() {
   storyScreen(
     "赛后",
-    `${state.log}
-
-夜里，海风从外野吹进来。你坐在空荡荡的休息区，重新整理比赛记录。
+    `夜里，海风从外野吹进来。你坐在空荡荡的休息区，重新整理比赛记录。
 
 峡光仍然是一支小破队。可你已经知道，它至少还有一点可以被修正的余地。`,
     "下一周",
