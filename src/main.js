@@ -33,6 +33,10 @@ const initialState = {
     mosasaurInviteSeen: false,
     watchedMosasaurGame: false,
     mtDebutGameDone: false,
+    syncWarmBodySeen: false,
+    syncSparePartsSeen: false,
+    syncCanStillPitchSeen: false,
+    syncEmptyLockerSeen: false,
   },
   stats: {
     record: 25,
@@ -49,6 +53,7 @@ const initialState = {
   currentMatchType: null,
   currentOpponent: "",
   crisisReturnPhase: "final-offense",
+  hiddenReturnKey: "",
 };
 
 let state = normalizeState(loadState()) || structuredClone(initialState);
@@ -94,6 +99,7 @@ function normalizeState(saved) {
     currentMatchType: saved.currentMatchType ?? fresh.currentMatchType,
     currentOpponent: saved.currentOpponent ?? fresh.currentOpponent,
     crisisReturnPhase: saved.crisisReturnPhase ?? fresh.crisisReturnPhase,
+    hiddenReturnKey: saved.hiddenReturnKey ?? fresh.hiddenReturnKey,
   };
 }
 
@@ -115,6 +121,54 @@ function changeStats(delta) {
 
 function addFlag(name) {
   state.flags[name] = true;
+}
+
+const hiddenReturnRoutes = {
+  returnToManage,
+  goToPractice,
+  goToTeamMisread,
+  goToWeekFourManage,
+  goToFinalOrWarning,
+  goToYewImprovement,
+  goToMTCooking,
+  goToMosasaurGame,
+};
+
+function returnToManage() {
+  state.screen = "manage";
+}
+
+function maybeTriggerSyncHiddenEvent(next) {
+  if (!state.flags.metMT || !next?.name || !hiddenReturnRoutes[next.name]) return false;
+  if (state.phase?.startsWith("sync-")) return false;
+
+  const { sync } = state.stats;
+  let phase = "";
+  if (sync <= 8 && !state.flags.syncEmptyLockerSeen) {
+    phase = "sync-empty-locker";
+  } else if (sync <= 15 && !state.flags.syncCanStillPitchSeen) {
+    phase = "sync-can-still-pitch";
+  } else if (sync >= 40 && !state.flags.syncSparePartsSeen) {
+    phase = "sync-spare-parts";
+  } else if (sync >= 25 && !state.flags.syncWarmBodySeen) {
+    phase = "sync-warm-body";
+  }
+
+  if (!phase) return false;
+  state.hiddenReturnKey = next.name;
+  state.screen = "event";
+  state.phase = phase;
+  return true;
+}
+
+function continueAfterHiddenEvent() {
+  const route = hiddenReturnRoutes[state.hiddenReturnKey];
+  state.hiddenReturnKey = "";
+  if (route) {
+    route();
+    return;
+  }
+  state.screen = "manage";
 }
 
 const opponentNames = ["北湾海鸥队", "铁桥工蜂队", "雾港鲸队", "南岭石鹫队", "蓝湾航星队"];
@@ -359,6 +413,7 @@ function choiceEvent(title, text, choices, weekText = "事件") {
       const choice = choices[Number(button.dataset.choice)];
       if (choice.cost && state.stats.funds < choice.cost) {
         state.log = `资金不足。你看了一眼账户余额，把这个方案从脑子里划掉。`;
+        if (choice.costFailDelta) changeStats(choice.costFailDelta);
         pendingStatChanges.funds = "down";
         saveState();
         render();
@@ -368,7 +423,7 @@ function choiceEvent(title, text, choices, weekText = "事件") {
       if (choice.delta) changeStats(choice.delta);
       if (choice.flags) choice.flags.forEach(addFlag);
       state.log = choice.result;
-      choice.next();
+      if (!maybeTriggerSyncHiddenEvent(choice.next)) choice.next();
       saveState();
       render();
     });
@@ -387,6 +442,10 @@ function renderEvent() {
   if (state.phase === "yew-improvement") return renderYewImprovementEvent();
   if (state.phase === "mt-cooking") return renderMTCookingEvent();
   if (state.phase === "mosasaur-game") return renderMosasaurGameEvent();
+  if (state.phase === "sync-warm-body") return renderSyncWarmBodyEvent();
+  if (state.phase === "sync-spare-parts") return renderSyncSparePartsEvent();
+  if (state.phase === "sync-can-still-pitch") return renderSyncCanStillPitchEvent();
+  if (state.phase === "sync-empty-locker") return renderSyncEmptyLockerEvent();
 }
 
 function goToPractice() {
@@ -988,6 +1047,170 @@ function renderMosasaurGameEvent() {
   );
 }
 
+function renderSyncWarmBodyEvent() {
+  choiceEvent(
+    "隐藏事件：体温不稳定",
+    `训练结束后，满天坐在长椅上，手指搭在球缝上。
+
+你原本只是路过，却忽然停下来。
+
+他的指尖很凉，额头却有一点不正常的热。满天看着自己的手，说：“这个部分好像又不太听话了。”
+
+他说得很平静。像在说一只手套的皮革开始松。`,
+    [
+      {
+        label: "把外套披给他，先不追问",
+        desc: "你先处理眼前这件小事。",
+        delta: { sync: 6, self: 4, load: -2 },
+        flags: ["syncWarmBodySeen", "mtBodyWarmthNoticed"],
+        result: "你把外套披到他肩上。满天低头看了看衣服，又看向你。他没有继续解释那个“不听话的部分”，但也没有躲开。",
+        next: continueAfterHiddenEvent,
+      },
+      {
+        label: "问他“这个部分”是什么意思",
+        desc: "你想知道他到底在说什么。",
+        delta: { sync: 2, self: 2 },
+        flags: ["syncWarmBodySeen", "mtBodyQuestioned"],
+        result: "满天想了很久，说：“就是这里。这里，还有这里。有些地方是后来才变成我的。”他指给你看，又很快把手收回去。",
+        next: continueAfterHiddenEvent,
+      },
+      {
+        label: "立刻叫紫阳过来检查",
+        desc: "这件事不能只靠感觉。",
+        delta: { sync: -4, load: -6 },
+        flags: ["syncWarmBodySeen", "yewCalledForWarmBody"],
+        result: "你叫了紫阳。满天很配合地伸出手，像配合一次常规检测。检查结束后，他问你：“刚才是异常吗？”你一时没有回答。",
+        next: continueAfterHiddenEvent,
+      },
+    ],
+    "隐藏事件"
+  );
+}
+
+function renderSyncSparePartsEvent() {
+  choiceEvent(
+    "隐藏事件：备用零件",
+    `满天帮你整理训练器材时，忽然停了一下。
+
+他的手腕发出很轻的一声响。不是骨头的声音。
+
+你还没开口，他已经自己转了转手，说：“如果这里坏掉，应该还有备用的。”
+
+他说得太自然了。像在说球棒裂了，可以换一根。`,
+    [
+      {
+        label: "告诉他：你不是器材",
+        desc: "这句话可能太直接，但你还是说了。",
+        delta: { sync: 8, self: 8 },
+        flags: ["syncSparePartsSeen", "raySaidMTNotEquipment"],
+        result: "满天抬头看你，像是没听懂。过了很久，他才问：“那坏掉以后，也还是满天吗？”你说，是。",
+        next: continueAfterHiddenEvent,
+      },
+      {
+        label: "问备用零件在哪里",
+        desc: "你需要知道更多，哪怕这个问题不太像关心。",
+        delta: { sync: -5, self: -3 },
+        flags: ["syncSparePartsSeen", "rayAskedSparePartsLocation"],
+        result: "满天认真回忆了一下，说他不知道。紫阳可能知道，莫道集团也可能知道。他回答得很完整，完整到你意识到自己刚才问得像一份资产清单。",
+        next: continueAfterHiddenEvent,
+      },
+      {
+        label: "花钱给他做一次额外检查",
+        desc: "不是比赛前的检测，是单独为他确认身体。",
+        cost: 6,
+        costFailDelta: { sync: -4, self: -2 },
+        delta: { sync: 4, load: -8, self: 3 },
+        flags: ["syncSparePartsSeen", "mtExtraBodyCheck"],
+        result: "你安排了一次额外检查。满天躺在检测台上时有点紧张，但检查结束后，他很小声地说：“原来今天不是因为我要投球。”",
+        next: continueAfterHiddenEvent,
+      },
+    ],
+    "隐藏事件"
+  );
+}
+
+function renderSyncCanStillPitchEvent() {
+  choiceEvent(
+    "隐藏事件：我今天还能投",
+    `你把今天的训练表改掉，没有安排满天继续投球。
+
+满天站在白板前看了很久。
+
+然后他说：“我今天还能投。”
+
+他不是在争取训练量。你听得出来。他是在确认：如果今天不投，他是不是还需要留在这里。`,
+    [
+      {
+        label: "说：不是因为能投才留下你",
+        desc: "你把话说慢一点。",
+        delta: { sync: 8, self: 7, load: -3 },
+        flags: ["syncCanStillPitchSeen", "rayKeptMTBeyondPitching"],
+        result: "满天看着你，像在等后半句。你没有把后半句变成战术说明。你只是重复了一遍：不是因为能投。",
+        next: continueAfterHiddenEvent,
+      },
+      {
+        label: "让他再投几颗给你看",
+        desc: "这似乎能让他安心。",
+        delta: { sync: 2, load: 12, self: -5 },
+        flags: ["syncCanStillPitchSeen", "rayAskedMorePitchesForComfort"],
+        result: "满天立刻点头。球一颗颗落进你的手套，精准得让人安心。可你越接越清楚：安心的人不是他，是你。",
+        next: continueAfterHiddenEvent,
+      },
+      {
+        label: "说：别添乱，今天照表休息",
+        desc: "你没有力气解释那么多。",
+        delta: { sync: -8, self: -6, load: -2 },
+        flags: ["syncCanStillPitchSeen", "rayCalledMTRestTrouble"],
+        result: "满天安静下来。他很快点头，像终于找到了正确指令。之后一整天，他都没有再主动问你任何问题。",
+        next: continueAfterHiddenEvent,
+      },
+    ],
+    "隐藏事件"
+  );
+}
+
+function renderSyncEmptyLockerEvent() {
+  choiceEvent(
+    "隐藏事件：空掉的储物柜",
+    `你在休息区找到满天时，他正把自己的东西一件件叠好。
+
+毛巾，备用手套，训练服。连球都排成整齐的一列。
+
+你问他在做什么。
+
+满天说：“如果要走，这样比较快。”
+
+他说完以后，又补了一句：“我没有偷懒。今天如果需要，我也可以投。”`,
+    [
+      {
+        label: "问：谁跟你说你要走？",
+        desc: "你先把这个问题拦下来。",
+        delta: { sync: 9, self: 5 },
+        flags: ["syncEmptyLockerSeen", "rayAskedWhoSaidMTWouldLeave"],
+        result: "满天愣了一下。他说没有人说。可是输球、停投、检查、回收，这些词总是离得很近。你站在储物柜前，第一次觉得这地方太容易被清空。",
+        next: continueAfterHiddenEvent,
+      },
+      {
+        label: "帮他把东西放回去",
+        desc: "先让这里恢复原样。",
+        delta: { sync: 3, self: 2 },
+        flags: ["syncEmptyLockerSeen", "rayRestoredMTLocker"],
+        result: "你没有多说，蹲下来帮他把东西一件件放回去。满天看着你放，最后自己把那颗球摆回最里面。",
+        next: continueAfterHiddenEvent,
+      },
+      {
+        label: "说：项目失败的话，我也不一定保得住你",
+        desc: "这是实话。也是很重的话。",
+        delta: { sync: -10, self: -4 },
+        flags: ["syncEmptyLockerSeen", "rayAdmittedMayNotSaveMT"],
+        result: "满天点头。他看起来并不意外，甚至像是终于听见了一个能执行的答案。那天以后，他训练得更安静了。",
+        next: continueAfterHiddenEvent,
+      },
+    ],
+    "隐藏事件"
+  );
+}
+
 const actions = [
   {
     id: "train",
@@ -1101,6 +1324,7 @@ function takeAction(id) {
   if (action.flags) action.flags.forEach(addFlag);
   state.actionsLeft -= 1;
   state.log = action.log;
+  maybeTriggerSyncHiddenEvent(returnToManage);
   saveState();
   render();
 }
