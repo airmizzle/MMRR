@@ -125,12 +125,14 @@ function nextOpponent() {
 function registerMatchWin(amount = 10) {
   changeStats({ record: amount });
   addFlag(`league_match_${state.leagueMatchNo}_won`);
+  state.leagueMatchNo += 1;
 }
 
 function registerMatchLoss(amount = -8) {
   changeStats({ record: amount });
   state.matchLosses += 1;
   addFlag(`league_match_${state.leagueMatchNo}_lost`);
+  state.leagueMatchNo += 1;
   if (state.matchLosses >= 2) {
     state.endingOverride = {
       title: "Game Over：消失的王牌",
@@ -836,7 +838,7 @@ function renderYewImprovementEvent() {
     [
       {
         label: "升级训练器材",
-        desc: "花 12 资金。队员训练质量上升，是最稳的长期改进。",
+        desc: "需要一笔钱。紫阳认为这是最该先补的短板。",
         cost: 12,
         delta: { morale: 10, record: 4 },
         flags: ["yewImprovementPlanSeen", "teamTrainingGearUpgraded"],
@@ -845,7 +847,7 @@ function renderYewImprovementEvent() {
       },
       {
         label: "增加录像和对手分析设备",
-        desc: "花 8 资金。更偏钟锐的方式，短期战绩收益更高。",
+        desc: "需要花钱。更像你的办法，紫阳不一定完全满意。",
         cost: 8,
         delta: { record: 10, morale: 2 },
         flags: ["yewImprovementPlanSeen", "analysisEquipmentUpgraded"],
@@ -854,7 +856,7 @@ function renderYewImprovementEvent() {
       },
       {
         label: "建立满天专用恢复监测流程",
-        desc: "花 10 资金。满天会更稳定，但队员会感觉资源偏向王牌。",
+        desc: "需要一笔钱。这个方案会让所有人看见资源流向哪里。",
         cost: 10,
         delta: { load: -12, sync: 3, morale: -2 },
         flags: ["yewImprovementPlanSeen", "mtRecoveryMonitorBuilt"],
@@ -863,7 +865,7 @@ function renderYewImprovementEvent() {
       },
       {
         label: "先什么都不做",
-        desc: "不花钱。问题会留在原地，队员也会看见你们没有动作。",
+        desc: "不花钱。也不用现在回答紫阳的问题。",
         delta: { morale: -8 },
         flags: ["yewImprovementPlanSeen", "yewPlanDelayed"],
         result: "你把计划暂时压下。紫阳没有继续吵，只把记录收起来。第二天训练时，队员们仍然用旧器材、旧场地和旧问题面对下一场比赛。",
@@ -887,7 +889,7 @@ function renderMTCookingEvent() {
     [
       {
         label: "做严格健康餐",
-        desc: "花 3 资金。身体恢复最好，但满天会觉得自己又被管理了。",
+        desc: "花一点钱。你知道这对他的身体更稳妥。",
         cost: 3,
         delta: { load: -8, self: -3, sync: 1 },
         flags: ["mtCookingSeen", "mtStrictHealthMeal"],
@@ -896,7 +898,7 @@ function renderMTCookingEvent() {
       },
       {
         label: "做满天想吃的甜食大餐",
-        desc: "花 5 资金。很甜，也很危险，至少不像恢复菜单。",
+        desc: "花一点钱。满天看起来真的很想吃。",
         cost: 5,
         delta: { sync: 8, self: 3, load: 3 },
         flags: ["mtCookingSeen", "mtSweetMeal"],
@@ -905,7 +907,7 @@ function renderMTCookingEvent() {
       },
       {
         label: "一起商量菜单",
-        desc: "花 4 资金。让满天参与决定自己的身体，收益比较均衡。",
+        desc: "花一点钱。你把菜单交给一个不太懂自己身体的人。",
         cost: 4,
         delta: { load: -4, self: 6, sync: 4 },
         flags: ["mtCookingSeen", "mtChoseMenuWithRay"],
@@ -914,7 +916,7 @@ function renderMTCookingEvent() {
       },
       {
         label: "没时间做，随便解决",
-        desc: "花 1 资金。省钱省事，但身体和关系都会付一点代价。",
+        desc: "少花一点钱。今晚先这样糊弄过去。",
         cost: 1,
         delta: { load: 5, sync: -2 },
         flags: ["mtCookingSeen", "mtMealHandledCasually"],
@@ -939,7 +941,7 @@ function renderMosasaurGameEvent() {
     [
       {
         label: "带满天去看沧龙比赛",
-        desc: "花 8 资金。开启江陵白城沟通线，也让满天看到另一种强队系统。",
+        desc: "要花钱。满天会看到你以前那群麻烦的棒球熟人。",
         cost: 8,
         delta: { self: 4, sync: 3, record: 4 },
         flags: ["mosasaurInviteSeen", "watchedMosasaurGame", "lingChengLineOpened"],
@@ -948,7 +950,7 @@ function renderMosasaurGameEvent() {
       },
       {
         label: "自己去看，让满天休息",
-        desc: "花 5 资金。偏战术侦察，满天会少一点负荷，但不会开启互动线。",
+        desc: "要花钱。你可以把它当成一次单独侦察。",
         cost: 5,
         delta: { record: 6, load: -4, sync: -2 },
         flags: ["mosasaurInviteSeen", "rayWatchedMosasaurAlone"],
@@ -957,7 +959,7 @@ function renderMosasaurGameEvent() {
       },
       {
         label: "不去，买录像分析",
-        desc: "花 3 资金。省钱，收益较低，不开启江陵白城沟通线。",
+        desc: "少花一点钱。只看录像，不去现场。",
         cost: 3,
         delta: { record: 3 },
         flags: ["mosasaurInviteSeen", "boughtMosasaurFootage"],
@@ -966,7 +968,7 @@ function renderMosasaurGameEvent() {
       },
       {
         label: "不去，留钱给峡光",
-        desc: "不花钱。错过支线机会，满天会有点在意。",
+        desc: "不花钱。今晚留在峡光这边。",
         delta: { self: -2 },
         flags: ["mosasaurInviteSeen", "skippedMosasaurGameForFunds"],
         result: "你没有去。钱留给了峡光。满天没有继续问，但那天晚上他翻来覆去看了很多沧龙的公开剪辑。",
@@ -1003,7 +1005,7 @@ const actions = [
   {
     id: "scout",
     title: "研究对手",
-    desc: "战绩收益最高，但你把时间给了对手，不是队友。",
+    desc: "最像你的办法，但你把时间给了对手，不是队友。",
     delta: { record: 10, morale: -2 },
     flag: "rayScoutOverTraining",
     log: "对手打线被拆成一格一格的弱点。你知道该怎么让他们不舒服。",
@@ -1370,7 +1372,9 @@ function resolveFinalGame(choice) {
   }
 
   state.flags.finalGameDone = true;
-  if (choice === "bench") {
+  if (state.endingOverride) {
+    state.screen = "ending";
+  } else if (choice === "bench") {
     state.screen = "event";
     state.phase = "bench-question";
   } else if ((choice === "ask" || choice === "soft") && state.stats.load < 85) {
@@ -1394,7 +1398,6 @@ function renderResult() {
 峡光仍然是一支小破队。可你已经知道，它至少还有一点可以被修正的余地。`,
     "下一周",
     () => {
-      state.leagueMatchNo = 2;
       state.screen = "story";
       state.phase = "mt-arrival";
       saveState();
