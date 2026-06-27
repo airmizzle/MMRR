@@ -28,6 +28,10 @@ const initialState = {
     mtBenchedQuestionSeen: false,
     emptyFieldCatchSeen: false,
     rayReportLateNightSeen: false,
+    yewImprovementPlanSeen: false,
+    mtCookingSeen: false,
+    mosasaurInviteSeen: false,
+    watchedMosasaurGame: false,
   },
   stats: {
     record: 25,
@@ -350,6 +354,14 @@ function choiceEvent(title, text, choices, weekText = "事件") {
   app.querySelectorAll("[data-choice]").forEach((button) => {
     button.addEventListener("click", () => {
       const choice = choices[Number(button.dataset.choice)];
+      if (choice.cost && state.stats.funds < choice.cost) {
+        state.log = `资金不足。你看了一眼账户余额，把这个方案从脑子里划掉。`;
+        pendingStatChanges.funds = "down";
+        saveState();
+        render();
+        return;
+      }
+      if (choice.cost) changeStats({ funds: -choice.cost });
       if (choice.delta) changeStats(choice.delta);
       if (choice.flags) choice.flags.forEach(addFlag);
       state.log = choice.result;
@@ -369,6 +381,9 @@ function renderEvent() {
   if (state.phase === "bench-question") return renderBenchQuestionEvent();
   if (state.phase === "empty-field") return renderEmptyFieldEvent();
   if (state.phase === "report-late-night") return renderReportLateNightEvent();
+  if (state.phase === "yew-improvement") return renderYewImprovementEvent();
+  if (state.phase === "mt-cooking") return renderMTCookingEvent();
+  if (state.phase === "mosasaur-game") return renderMosasaurGameEvent();
 }
 
 function goToPractice() {
@@ -395,6 +410,33 @@ function goToFinalOrWarning() {
     return;
   }
   openLeagueIntro("final");
+}
+
+function goToYewImprovement() {
+  if (!state.flags.yewImprovementPlanSeen) {
+    state.screen = "event";
+    state.phase = "yew-improvement";
+    return;
+  }
+  goToMTCooking();
+}
+
+function goToMTCooking() {
+  if (!state.flags.mtCookingSeen) {
+    state.screen = "event";
+    state.phase = "mt-cooking";
+    return;
+  }
+  goToMosasaurGame();
+}
+
+function goToMosasaurGame() {
+  if (!state.flags.watchedMosasaurGame && !state.flags.mosasaurInviteSeen) {
+    state.screen = "event";
+    state.phase = "mosasaur-game";
+    return;
+  }
+  goToFinalOrWarning();
 }
 
 function canEnterLeagueMatch() {
@@ -756,7 +798,7 @@ function renderReportLateNightEvent() {
         delta: { funds: 3, sync: -1, self: -1 },
         flags: ["rayReportLateNightSeen", "rayRefusedMTCare"],
         result: "你让他回去睡。满天在门口站了几秒，像是确认这条指令是否也需要执行，然后转身回房间。",
-        next: goToFinalOrWarning,
+        next: goToYewImprovement,
       },
       {
         label: "让他坐一会儿",
@@ -764,7 +806,7 @@ function renderReportLateNightEvent() {
         delta: { sync: 4, self: 2, morale: -1 },
         flags: ["rayReportLateNightSeen", "mtSatWithRayReport"],
         result: "满天坐在旁边看你写报告。你没有解释那些模型，他也没有问。房间里只有键盘声和他的呼吸。",
-        next: goToFinalOrWarning,
+        next: goToYewImprovement,
       },
       {
         label: "关掉报告，明天再写",
@@ -772,6 +814,162 @@ function renderReportLateNightEvent() {
         delta: { funds: -5, sync: 3, self: 3 },
         flags: ["rayReportLateNightSeen", "rayStoppedReportForMT"],
         result: "你关掉报告。满天看着黑下来的屏幕，又看向你，像是第一次发现你也会停止运转。",
+        next: goToYewImprovement,
+      },
+    ],
+    "日常"
+  );
+}
+
+function renderYewImprovementEvent() {
+  choiceEvent(
+    "日常：和紫阳商量球队改进计划",
+    `紫阳把峡光最近几场的训练记录摊在桌上。
+
+她说：“你能靠临场配球把这支队伍拖起来，但不能一直这样拖。”
+
+你指出下一场联赛马上就到，长期计划救不了眼前的局面。
+
+紫阳冷笑：“那你就继续把眼前的局面全塞给满天？”
+
+你们吵了十分钟，最后都意识到问题不是要不要改，而是钱只能改一个地方。`,
+    [
+      {
+        label: "升级训练器材",
+        desc: "花 12 资金。队员训练质量上升，是最稳的长期改进。",
+        cost: 12,
+        delta: { morale: 10, record: 4 },
+        flags: ["yewImprovementPlanSeen", "teamTrainingGearUpgraded"],
+        result: "你同意先升级训练器材。紫阳没有夸你，只把采购清单推过来。队员们第二天看见新器材时，休息区里少见地响起了欢呼。",
+        next: goToMTCooking,
+      },
+      {
+        label: "增加录像和对手分析设备",
+        desc: "花 8 资金。更偏钟锐的方式，短期战绩收益更高。",
+        cost: 8,
+        delta: { record: 10, morale: 2 },
+        flags: ["yewImprovementPlanSeen", "analysisEquipmentUpgraded"],
+        result: "你选择先补录像和分析设备。紫阳看起来不完全满意，但也承认这能让下一场比赛少一些盲区。你的战术板终于不再像临时拼出来的犯罪现场。",
+        next: goToMTCooking,
+      },
+      {
+        label: "建立满天专用恢复监测流程",
+        desc: "花 10 资金。满天会更稳定，但队员会感觉资源偏向王牌。",
+        cost: 10,
+        delta: { load: -12, sync: 3, morale: -2 },
+        flags: ["yewImprovementPlanSeen", "mtRecoveryMonitorBuilt"],
+        result: "你把钱投进满天的恢复监测。紫阳亲自改了表格。满天看起来很开心，因为他发现你们正在认真记录他的身体；几个队员则假装没看见那套新设备。",
+        next: goToMTCooking,
+      },
+      {
+        label: "先什么都不做",
+        desc: "不花钱。问题会留在原地，队员也会看见你们没有动作。",
+        delta: { morale: -8 },
+        flags: ["yewImprovementPlanSeen", "yewPlanDelayed"],
+        result: "你把计划暂时压下。紫阳没有继续吵，只把记录收起来。第二天训练时，队员们仍然用旧器材、旧场地和旧问题面对下一场比赛。",
+        next: goToMTCooking,
+      },
+    ],
+    "球队改进"
+  );
+}
+
+function renderMTCookingEvent() {
+  choiceEvent(
+    "日常：给满天做饭",
+    `训练结束后，满天又在便利店货架前停住。
+
+你拎着他的后领把人带回家，打开冰箱。
+
+满天站在厨房门口，看着你拿出食材，问：“今天的饭是为了投球，还是为了吃饭？”
+
+这个问题比菜单本身麻烦。`,
+    [
+      {
+        label: "做严格健康餐",
+        desc: "花 3 资金。身体恢复最好，但满天会觉得自己又被管理了。",
+        cost: 3,
+        delta: { load: -8, self: -3, sync: 1 },
+        flags: ["mtCookingSeen", "mtStrictHealthMeal"],
+        result: "你做了严格健康餐。满天吃得很认真，也很痛苦。你知道这顿饭对他的身体最好，但他看向盘子的眼神像是在阅读一份处罚决定。",
+        next: goToMosasaurGame,
+      },
+      {
+        label: "做满天想吃的甜食大餐",
+        desc: "花 5 资金。很甜，也很危险，至少不像恢复菜单。",
+        cost: 5,
+        delta: { sync: 8, self: 3, load: 3 },
+        flags: ["mtCookingSeen", "mtSweetMeal"],
+        result: "你做了满天想吃的甜食大餐。满天坐在桌边，眼睛亮得像刚接到你给出的暗号。你看着他吃，脑子里已经开始计算明天要怎么把这顿饭补回来。",
+        next: goToMosasaurGame,
+      },
+      {
+        label: "一起商量菜单",
+        desc: "花 4 资金。让满天参与决定自己的身体，收益比较均衡。",
+        cost: 4,
+        delta: { load: -4, self: 6, sync: 4 },
+        flags: ["mtCookingSeen", "mtChoseMenuWithRay"],
+        result: "你让满天一起商量菜单。他说不清想吃什么，只能说颜色、味道和身体里的感觉。你把那些奇怪描述翻译成一顿勉强合格的饭。",
+        next: goToMosasaurGame,
+      },
+      {
+        label: "没时间做，随便解决",
+        desc: "花 1 资金。省钱省事，但身体和关系都会付一点代价。",
+        cost: 1,
+        delta: { load: 5, sync: -2 },
+        flags: ["mtCookingSeen", "mtMealHandledCasually"],
+        result: "你随便解决了晚饭。满天没有抱怨，但吃完以后还是看了你一会儿。那不是责怪，更像是不明白为什么今天这件事没有被认真安排。",
+        next: goToMosasaurGame,
+      },
+    ],
+    "日常"
+  );
+}
+
+function renderMosasaurGameEvent() {
+  choiceEvent(
+    "日常：要不要去看沧龙队比赛",
+    `江陵发来一条信息。
+
+“今晚打你们看不懂的棒球。”
+
+满天从你身后探头，看见“江陵”这个名字，问：“这是以前钟锐的棒球交际圈吗？”
+
+沧龙今晚主场。江陵和白城都在先发名单里。去看比赛要花钱，也要花掉一整个晚上。`,
+    [
+      {
+        label: "带满天去看沧龙比赛",
+        desc: "花 8 资金。开启江陵白城沟通线，也让满天看到另一种强队系统。",
+        cost: 8,
+        delta: { self: 4, sync: 3, record: 4 },
+        flags: ["mosasaurInviteSeen", "watchedMosasaurGame", "lingChengLineOpened"],
+        result: "你带满天去了沧龙主场。江陵在九局下半挥出一记漂亮安打，白城在待打区笑得像早就知道会这样。满天看完以后说：“他们也像一组投捕吗？”你决定暂时不回答。",
+        next: goToFinalOrWarning,
+      },
+      {
+        label: "自己去看，让满天休息",
+        desc: "花 5 资金。偏战术侦察，满天会少一点负荷，但不会开启互动线。",
+        cost: 5,
+        delta: { record: 6, load: -4, sync: -2 },
+        flags: ["mosasaurInviteSeen", "rayWatchedMosasaurAlone"],
+        result: "你自己去了沧龙主场。江陵打得很烦，白城处理所有媒体镜头都很熟练。你带回很多有用情报，也带回一个明显不太高兴的满天。",
+        next: goToFinalOrWarning,
+      },
+      {
+        label: "不去，买录像分析",
+        desc: "花 3 资金。省钱，收益较低，不开启江陵白城沟通线。",
+        cost: 3,
+        delta: { record: 3 },
+        flags: ["mosasaurInviteSeen", "boughtMosasaurFootage"],
+        result: "你买了录像分析。画面里的江陵和白城依然烦人，但至少他们现在可以被暂停、倒放和标注。满天看了一会儿，问为什么他们不用暗号也知道彼此要做什么。",
+        next: goToFinalOrWarning,
+      },
+      {
+        label: "不去，留钱给峡光",
+        desc: "不花钱。错过支线机会，满天会有点在意。",
+        delta: { self: -2 },
+        flags: ["mosasaurInviteSeen", "skippedMosasaurGameForFunds"],
+        result: "你没有去。钱留给了峡光。满天没有继续问，但那天晚上他翻来覆去看了很多沧龙的公开剪辑。",
         next: goToFinalOrWarning,
       },
     ],
@@ -903,7 +1101,7 @@ function advanceFromManage() {
       state.screen = "event";
       state.phase = "report-late-night";
     } else {
-      goToFinalOrWarning();
+      goToYewImprovement();
     }
   } else {
     state.screen = "story";
