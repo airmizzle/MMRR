@@ -1,4 +1,4 @@
-# 峡之光 Demo v0.2
+# 峡之光 Demo v0.3
 
 MMRR 项目早期试玩 Demo。
 
@@ -36,6 +36,9 @@ Settings -> Pages -> Deploy from a branch -> main -> /root
 - 日常事件
 - 练习赛与联赛交叉
 - 联赛战绩/士气门槛
+- 联赛比赛日界面
+- 球队进攻/守备决策
+- 失败累计，两败后 Game Over
 - 条件结果事件
 - 提前 Game Over
 - 多结局判定

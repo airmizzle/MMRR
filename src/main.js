@@ -39,10 +39,16 @@ const initialState = {
   },
   log: "",
   endingOverride: null,
+  matchLosses: 0,
+  leagueMatchNo: 1,
+  currentMatchType: null,
+  currentOpponent: "",
+  crisisReturnPhase: "final-offense",
 };
 
 let state = normalizeState(loadState()) || structuredClone(initialState);
 let pendingStatChanges = {};
+let pendingActionFlash = false;
 
 const app = document.querySelector("#app");
 
@@ -78,6 +84,11 @@ function normalizeState(saved) {
       sync: saved.stats?.sync ?? fresh.stats.sync,
     },
     endingOverride: saved.endingOverride ?? fresh.endingOverride,
+    matchLosses: saved.matchLosses ?? fresh.matchLosses,
+    leagueMatchNo: saved.leagueMatchNo ?? fresh.leagueMatchNo,
+    currentMatchType: saved.currentMatchType ?? fresh.currentMatchType,
+    currentOpponent: saved.currentOpponent ?? fresh.currentOpponent,
+    crisisReturnPhase: saved.crisisReturnPhase ?? fresh.crisisReturnPhase,
   };
 }
 
@@ -99,6 +110,39 @@ function changeStats(delta) {
 
 function addFlag(name) {
   state.flags[name] = true;
+}
+
+const opponentNames = ["北湾海鸥队", "铁桥工蜂队", "雾港鲸队", "南岭石鹫队", "蓝湾航星队"];
+
+function nextOpponent() {
+  return opponentNames[(state.leagueMatchNo - 1) % opponentNames.length];
+}
+
+function registerMatchWin(amount = 10) {
+  changeStats({ record: amount });
+  addFlag(`league_match_${state.leagueMatchNo}_won`);
+}
+
+function registerMatchLoss(amount = -8) {
+  changeStats({ record: amount });
+  state.matchLosses += 1;
+  addFlag(`league_match_${state.leagueMatchNo}_lost`);
+  if (state.matchLosses >= 2) {
+    state.endingOverride = {
+      title: "Game Over：消失的王牌",
+      text: `峡光再次输掉了正式联赛。
+
+这不是一场普通失利，而是项目评估里的第二次失败。
+
+莫道集团不再相信峡光能提供足够稳定、足够有价值的真实比赛环境。紫阳试图争取时间，但手续已经被重新启动。
+
+第二天，满天没有出现在训练场。
+
+他的储物柜被清空，投手丘上没有脚印。所有人都说那名外援只是离队了，只有你知道，他不是离队。
+
+他被回收了。`,
+    };
+  }
 }
 
 function loadStatus(value) {
@@ -160,7 +204,7 @@ function shell(title, body, options = {}) {
       <section class="main-panel">
         <div class="topline">
           <div class="chapter">${title}</div>
-          <div class="week">${options.weekText || `第 ${state.week} 周 · 行动 ${state.actionsLeft}/2`}</div>
+          <div class="week ${pendingActionFlash ? "week-flash" : ""}">${options.weekText || `第 ${state.week} 周 · 行动 ${state.actionsLeft}/2`}</div>
         </div>
         <div class="content">${body}</div>
       </section>
@@ -174,6 +218,7 @@ function shell(title, body, options = {}) {
 
   window.setTimeout(() => {
     pendingStatChanges = {};
+    pendingActionFlash = false;
   }, 900);
 }
 
@@ -349,13 +394,7 @@ function goToFinalOrWarning() {
     state.phase = "yew-warning";
     return;
   }
-  if (!canEnterLeagueMatch()) {
-    state.screen = "event";
-    state.phase = "league-crisis";
-    return;
-  }
-  state.screen = "game";
-  state.phase = "final-game";
+  openLeagueIntro("final");
 }
 
 function canEnterLeagueMatch() {
@@ -563,7 +602,7 @@ ${reason}
             changeStats({ record: 10, sync: 10, load: 35, self: -8 });
             addFlag("mtBurnedToSaveMatch");
             state.screen = "game";
-            state.phase = "final-game";
+            state.phase = state.crisisReturnPhase || "final-game";
           } else {
             changeStats({ load: 25, self: -10, sync: 5 });
             addFlag("mtBurnedButMatchLost");
@@ -808,7 +847,7 @@ function renderManage() {
     <div class="actions">${actionCards}</div>
     ${state.log ? `<div class="log">${state.log}</div>` : ""}
     <div class="primary-row">
-      <button class="primary-btn" data-next-week>${state.actionsLeft > 0 ? "跳过剩余行动" : "进入下一段"}</button>
+      <button class="primary-btn" data-next-week>结束本周运营</button>
     </div>
   `);
 
@@ -832,7 +871,13 @@ function manageCopy() {
 }
 
 function takeAction(id) {
-  if (state.actionsLeft <= 0) return;
+  if (state.actionsLeft <= 0) {
+    state.log = "本周行动点已经用完。";
+    pendingActionFlash = true;
+    saveState();
+    render();
+    return;
+  }
   const action = actions.find((item) => item.id === id);
   if (!action) return;
 
@@ -847,8 +892,7 @@ function takeAction(id) {
 
 function advanceFromManage() {
   if (state.week === 1) {
-    state.screen = "game";
-    state.phase = "first-game";
+    openLeagueIntro("first");
   } else if (state.week === 3) {
     state.week = 4;
     state.actionsLeft = 2;
@@ -872,9 +916,62 @@ function advanceFromManage() {
 function renderGame() {
   if (state.phase === "first-game") {
     renderFirstGame();
+  } else if (state.phase === "final-offense") {
+    renderFinalOffense();
+  } else if (state.phase === "final-defense") {
+    renderFinalDefense();
   } else {
     renderFinalGame();
   }
+}
+
+function checkMoraleCrisis(nextPhase) {
+  if (state.stats.morale < 25) {
+    state.crisisReturnPhase = nextPhase;
+    state.screen = "event";
+    state.phase = "league-crisis";
+    return true;
+  }
+  return false;
+}
+
+function openLeagueIntro(type) {
+  state.currentMatchType = type;
+  state.currentOpponent = nextOpponent();
+  state.screen = "league";
+}
+
+function renderLeagueIntro() {
+  const matchName = state.currentMatchType === "first" ? "没有满天的联赛" : "关键联赛";
+  shell("联赛日", `
+    <h2 class="screen-title">独立联盟联赛 第 ${state.leagueMatchNo} 场</h2>
+    <div class="prose">峡光队 vs ${state.currentOpponent}
+
+${matchName}
+
+正式比赛不会等球队准备好才开始。你能带进球场的，只有之前每一周攒下来的战绩、士气和选择。球员们已经在休息区换好衣服，海风从通道尽头灌进来。
+
+今天的对手不会知道峡光队有多破。他们只会把破绽打穿。</div>
+    <div class="primary-row">
+      <button class="primary-btn" data-start-match>开始比赛</button>
+    </div>
+  `, { weekText: "联赛日" });
+
+  app.querySelector("[data-start-match]").addEventListener("click", () => {
+    if (state.currentMatchType === "first") {
+      state.screen = "game";
+      state.phase = "first-game";
+    } else if (!canEnterLeagueMatch()) {
+      state.crisisReturnPhase = "final-offense";
+      state.screen = "event";
+      state.phase = "league-crisis";
+    } else {
+      state.screen = "game";
+      state.phase = "final-offense";
+    }
+    saveState();
+    render();
+  });
 }
 
 function renderFirstGame() {
@@ -898,21 +995,25 @@ function renderFirstGame() {
 function resolveFirstGame(choice) {
   let text = "";
   if (choice === "safe") {
-    changeStats({ record: 5, morale: 5 });
-    text = "球被打成二垒方向的滚地。你们守住了这一局。比赛还是输了，但不是毫无内容。";
+    changeStats({ record: -4, morale: 5 });
+    registerMatchLoss(0);
+    text = "球被打成二垒方向的滚地。你们守住了这一局，但打线没有追回比分。峡光输了，不过这不是毫无内容的败局。";
   } else if (choice === "risk") {
     if (state.stats.record >= 35) {
       changeStats({ record: 12, morale: 3 });
       addFlag("rayRiskyCallSuccess");
-      text = "内角球压进来。打者挥空。投手回头看你，像是第一次发现自己还能做到这种事。";
+      registerMatchWin(0);
+      text = "内角球压进来。打者挥空。投手回头看你，像是第一次发现自己还能做到这种事。峡光靠这一局守住了反攻机会，险险赢下比赛。";
     } else {
-      changeStats({ record: -5, morale: -5 });
+      changeStats({ record: -8, morale: -5 });
       addFlag("rayPlanExecutionFailed");
-      text = "球偏了半颗。三棒把它打穿。你的方案没错，执行的人撑不住。";
+      registerMatchLoss(0);
+      text = "球偏了半颗。三棒把它打穿。你的方案没错，执行的人撑不住。峡光输掉了这场联赛。";
     }
   } else {
-    changeStats({ record: -3, morale: 3 });
-    text = "你保送了三棒。四棒没有浪费这个礼物。至少队员们看懂了你在计算什么。";
+    changeStats({ record: -6, morale: 3 });
+    registerMatchLoss(0);
+    text = "你保送了三棒。四棒没有浪费这个礼物。峡光输了。至少队员们看懂了你在计算什么，但看懂还不等于赢。";
   }
 
   state.flags.firstGameDone = true;
@@ -921,6 +1022,102 @@ function resolveFirstGame(choice) {
   state.screen = "result";
   state.phase = "first-result";
   state.log = text;
+  saveState();
+  render();
+}
+
+function renderFinalOffense() {
+  shell("联赛：进攻布局", `
+    <h2 class="screen-title">三局上半，峡光进攻</h2>
+    <div class="prose">比赛进入前半段，对手投手开始适应峡光的打线。
+
+现在不是满天能解决的问题。峡光必须自己想办法拿分。队员们看向休息区，等你决定这一局怎么打。</div>
+    <div class="choices">
+      <button class="choice-btn" data-choice="steady"><strong>稳定推进</strong><span>用短打、跑垒和牺牲推进慢慢抢分。适合士气高的队伍。</span></button>
+      <button class="choice-btn" data-choice="rush"><strong>抢开局</strong><span>一开始就冒险抢分，成功会建立优势，失败会重创士气。</span></button>
+      <button class="choice-btn" data-choice="wait"><strong>等对手失误</strong><span>少冒险，消耗对方投手。适合前面积累了足够战绩和情报时。</span></button>
+    </div>
+  `, { weekText: `${state.currentOpponent} · 进攻` });
+
+  app.querySelectorAll("[data-choice]").forEach((button) => {
+    button.addEventListener("click", () => resolveFinalOffense(button.dataset.choice));
+  });
+}
+
+function resolveFinalOffense(choice) {
+  if (choice === "steady") {
+    if (state.stats.morale >= 40) {
+      changeStats({ morale: 5 });
+      state.log = "你让队员稳稳推进。没有漂亮的大挥棒，但每个人都知道自己该做什么。峡光抢到一个扎实的得分机会。";
+    } else {
+      changeStats({ morale: -8 });
+      state.log = "你选择稳定推进，但队员动作慢了半拍。短打没有落到该落的位置，跑者也没有启动。休息区里的沉默变重了。";
+    }
+  } else if (choice === "rush") {
+    if (state.stats.record >= 50 && state.stats.morale >= 35) {
+      changeStats({ morale: 3, record: 3 });
+      state.log = "你让峡光抢开局。跑者几乎是贴着封杀冲过去的，但成功了。队员们第一次觉得自己也能把对手逼急。";
+    } else {
+      changeStats({ morale: -12 });
+      state.log = "你让峡光抢开局，但这支队伍还没准备好承受这种速度。一个跑垒失误把局面直接送回对手手里。";
+    }
+  } else {
+    if (state.stats.record >= 45 || state.flags.rayScoutOverTraining) {
+      changeStats({ morale: 4 });
+      state.log = "你让队员耐心消耗。对方投手先急了，坏球变多。峡光没打出漂亮一击，却把局面一点点磨开。";
+    } else {
+      changeStats({ morale: -7 });
+      state.log = "你选择等待对手失误，但峡光没有足够的压迫感。对手没有犯错，队员反而开始怀疑自己是不是只是在浪费机会。";
+    }
+  }
+
+  if (!checkMoraleCrisis("final-defense")) {
+    state.screen = "game";
+    state.phase = "final-defense";
+  }
+  saveState();
+  render();
+}
+
+function renderFinalDefense() {
+  shell("联赛：守备布局", `
+    <h2 class="screen-title">五局下半，对手反攻</h2>
+    <div class="prose">对手打线开始压上来。
+
+现在的问题很直白：普通队员能不能守住满天之外的部分。如果守备被打穿，满天就会被迫用更多球来补整支队伍的洞。</div>
+    <div class="choices">
+      <button class="choice-btn" data-choice="trust"><strong>相信队友正常守备</strong><span>让队员守住自己的区域。适合士气足够高的时候。</span></button>
+      <button class="choice-btn" data-choice="tight"><strong>收缩守备，先别大崩</strong><span>减少大失分风险，但会让对手一点点上垒。</span></button>
+      <button class="choice-btn" data-choice="mt"><strong>让满天多用三振解决</strong><span>守备压力会下降，但满天负荷会上升。</span></button>
+    </div>
+  `, { weekText: `${state.currentOpponent} · 守备` });
+
+  app.querySelectorAll("[data-choice]").forEach((button) => {
+    button.addEventListener("click", () => resolveFinalDefense(button.dataset.choice));
+  });
+}
+
+function resolveFinalDefense(choice) {
+  if (choice === "trust") {
+    if (state.stats.morale >= 45) {
+      changeStats({ morale: 6, load: -3 });
+      state.log = "你让队友正常守备。外野判断及时，内野传球也压得住。满天没有多投，队伍自己守住了一局。";
+    } else {
+      changeStats({ morale: -10, load: 5 });
+      state.log = "你选择相信队友，但他们还撑不住。一次传球偏高后，满天不得不用更锋利的球把局面压回去。";
+    }
+  } else if (choice === "tight") {
+    changeStats({ morale: 2, load: 6 });
+    state.log = "你把守备收紧。峡光没有大崩，但对手一点点上垒，压力慢慢堆到满天手上。";
+  } else {
+    changeStats({ load: 18, sync: 5, morale: -4 });
+    state.log = "你让满天多用三振解决。对手挥空，休息区松了一口气。可队员们也清楚，这一局不是他们守下来的。";
+  }
+
+  if (!checkMoraleCrisis("final-game")) {
+    state.screen = "game";
+    state.phase = "final-game";
+  }
   saveState();
   render();
 }
@@ -953,20 +1150,24 @@ function resolveFinalGame(choice) {
   if (choice === "full") {
     changeStats({ record: 20, sync: 12, load: 90, self: -5 });
     addFlag("rayOverusedMTForWin");
+    registerMatchWin(0);
     text = "你没有收手。满天投出了你想要的球，一颗接一颗，像所有暗号终于找到了身体。峡光赢了。满天的手指在赛后很久都没有停止发抖。";
   } else if (choice === "soft") {
     changeStats({ record: 10, sync: 6, load: 25, self: 5 });
     addFlag("rayLimitedMTPitchMix");
+    registerMatchWin(0);
     text = "你把配球削到更简单。满天有些困惑，但还是执行了。峡光守住胜利，你知道自己还可以做得更细。";
   } else if (choice === "bench") {
     changeStats({ record: -8, load: -20, self: -3, morale: 2, sync: -5 });
     addFlag("rayDecidedForMTBody");
+    registerMatchLoss(0);
     text = "你换下了满天。替补投手丢了分，比赛输了。满天坐在你旁边，低声问：我刚才不能投了吗？";
   } else {
     const selfGain = state.flags.askedMT || state.flags.restedMT ? 22 : 12;
     changeStats({ record: 5, sync: 8, load: 10, self: selfGain });
     state.flags.askedMT = true;
     addFlag("mtAskedOnMound");
+    registerMatchWin(0);
     text = "你走上投手丘。满天等着你的暗号。你问他：你现在想怎么投？他愣了一下，第一次认真检查自己的手、呼吸和脚下的土。";
   }
 
@@ -995,6 +1196,7 @@ function renderResult() {
 峡光仍然是一支小破队。可你已经知道，它至少还有一点可以被修正的余地。`,
     "下一周",
     () => {
+      state.leagueMatchNo = 2;
       state.screen = "story";
       state.phase = "mt-arrival";
       saveState();
@@ -1104,6 +1306,7 @@ function render() {
   if (state.screen === "menu") renderMenu();
   if (state.screen === "story") renderStory();
   if (state.screen === "event") renderEvent();
+  if (state.screen === "league") renderLeagueIntro();
   if (state.screen === "manage") renderManage();
   if (state.screen === "game") renderGame();
   if (state.screen === "result") renderResult();

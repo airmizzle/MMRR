@@ -257,6 +257,26 @@ button:hover {
   font-size: 13px;
 }
 
+.week-flash {
+  animation: weekWarn 0.82s ease-out;
+}
+
+@keyframes weekWarn {
+  0% {
+    color: #ffd5ce;
+    background: rgba(216, 121, 103, 0.35);
+    box-shadow: 0 0 0 0 rgba(216, 121, 103, 0.52);
+  }
+  45% {
+    color: #ffd5ce;
+    background: rgba(216, 121, 103, 0.18);
+    box-shadow: 0 0 0 5px rgba(216, 121, 103, 0.08);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
 .content {
   display: flex;
   flex-direction: column;
