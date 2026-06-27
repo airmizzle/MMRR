@@ -628,47 +628,66 @@ button:hover {
     font-size: 11px;
   }
 
+  .topline {
+    padding: 7px 10px;
+  }
+
+  .chapter,
+  .week {
+    font-size: 12px;
+  }
+
   .content {
     padding: 10px;
     overflow: auto;
   }
 
   .screen-title {
-    font-size: 19px;
-    margin-bottom: 6px;
+    font-size: 17px;
+    margin-bottom: 5px;
   }
 
   .prose {
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     max-width: none;
-    max-height: none;
-    font-size: 14px;
-    line-height: 1.48;
+    max-height: min(30vh, 178px);
+    padding-right: 3px;
+    overflow: auto;
+    font-size: 13px;
+    line-height: 1.42;
   }
 
   .actions {
     grid-template-columns: 1fr 1fr;
   }
 
+  .actions,
+  .choices {
+    gap: 5px;
+    margin-top: 6px;
+  }
+
   .choice-btn,
   .action-btn,
   .primary-btn {
-    padding: 8px 9px;
+    padding: 6px 7px;
   }
 
   .primary-row {
     flex: 0 0 auto;
-    margin-top: 8px;
+    margin-top: 6px;
   }
 
   .choice-btn strong,
   .action-btn strong {
-    font-size: 13px;
+    margin-bottom: 1px;
+    font-size: 12px;
   }
 
   .choice-btn span,
   .action-btn span {
-    font-size: 11px;
+    font-size: 10px;
+    line-height: 1.22;
   }
 
   .menu-card {
