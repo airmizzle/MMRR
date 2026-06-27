@@ -208,15 +208,16 @@ function getDialogue(speaker) {
   const f = state.flags;
   if (speaker === "mt") {
     if (!f.metMT) return "投手丘上还没有那个会把球精准投进你手套的人。";
-    if (s.sync <= 10) return "如果我自己能投好，你是不是就不用管我了？";
-    if (s.load >= 70) return "手指有点热。但如果你比暗号，我还是会投。";
-    if (s.self <= 20) return "你告诉我怎么投就可以。我会投进去。";
-    if (s.sync >= 40) return "有时候你还没比暗号，我就知道你想让我投什么。";
+    if (s.sync <= 10) return "你今天没有立刻给暗号。你觉得我不能理解暗号吗？";
+    if (s.load >= 70) return "手指有点热，像球缝在里面长出来了。你现在还想接我的球吗？";
+    if (s.self <= 20) return "如果今天不让我投，我应该做什么？坐着等，还是继续练？";
+    if (s.sync >= 40) return "你还没比暗号，我就知道你想让我投什么。你的肩膀比手先说了。";
     return pickLine([
-      "便利店的灯很亮。比实验室亮得乱一点。",
-      "球落进你手套里的声音，比数据提示音好听。",
-      "今天可以投吗？不投也可以。我只是先问一下。",
-      "峡光的海风很咸。实验室里没有这种味道。",
+      "便利店的灯很亮。看起来很灿烂，很香。",
+      "峡光的海风会推球。它也是峡光的队友吗？",
+      "三棒今天的脚比眼睛诚实。他说不怕我，但膝盖先后退了。",
+      "你的手套今天很急，很想赢。",
+      "旧球场的灯坏得很有规律。是不是也能算一种暗号？",
     ]);
   }
 
@@ -382,7 +383,7 @@ function registerMatchLoss(amount = -8) {
       title: "Game Over：消失的王牌",
       text: `峡光再次输掉了正式联赛。
 
-这不是一场普通失利，而是项目评估里的第二次失败。
+这场失利进入了项目评估。
 
 莫道集团不再相信峡光能提供足够稳定、足够有价值的真实比赛环境。紫阳试图争取时间，但手续已经被重新启动。
 
@@ -751,7 +752,15 @@ function renderSnackEvent() {
     "日常：便利店门口",
     `训练结束后，满天停在便利店门口。
 
-他看着货架上的零食，像在观察某种不明但强烈的信号源。队员已经走出去几步，他还站在自动门前，眼睛跟着彩色包装移动。
+他没有立刻进去，站在自动门前，看着货架上一整墙彩色包装。
+
+“人类为什么把味道做成这么多颜色？”他问。
+
+你还没回答，他已经拿起一袋糖，认真读配料表，像在看对手打线。
+
+“这个写着葡萄味。”满天说，“但它不像葡萄。它在撒谎吗？”
+
+队员已经走出去几步，又回头看他。有人小声说：“他连零食都能分析吗？”
 
 你看了一眼明天的训练表，又看了一眼他手里的东西。
 
@@ -762,7 +771,7 @@ function renderSnackEvent() {
         desc: "明天有投球训练。他不能随便吃这个。",
         delta: { load: -2, self: -3, sync: -1 },
         flags: ["mtSnackEventSeen", "mtSnackConfiscated", "rayDecidedForMTBodySnack"],
-        result: "你把零食从他手里拿走。满天没有反抗，只是低头看了看空掉的手，像是在确认某种规则。",
+        result: "你把零食从他手里拿走。满天低头看了看空掉的手，又看了看货架。“原来明天投球的时候，葡萄味会干扰手指。”他说得太认真，认真到你一时不知道要不要纠正。",
         next: goToPractice,
       },
       {
@@ -770,7 +779,7 @@ function renderSnackEvent() {
         desc: "允许他吃，但你会重新计算晚饭和恢复菜单。",
         delta: { funds: -2, self: 2, sync: 2 },
         flags: ["mtSnackEventSeen", "mtSnackCompromise", "rayManagedMTBody"],
-        result: "满天拿着零食看你，像是在确认这是不是一种许可。你已经在脑子里重排了晚饭、恢复菜单和明天的热身时间。",
+        result: "满天拿着零食，眼睛亮了一下。“所以可以吃，只要放进计划里。”你已经开始重排晚饭、恢复菜单和明天热身。满天把那袋糖拿得像一颗崭新的球。",
         next: goToPractice,
       },
       {
@@ -778,7 +787,7 @@ function renderSnackEvent() {
         desc: "你先不阻止，只问他为什么想要。",
         delta: { self: 6, sync: 1, morale: -1 },
         flags: ["mtSnackEventSeen", "mtAskedBodyWant"],
-        result: "满天想了很久。他说不清是饿，还是被颜色吸引，还是只是想知道那是什么味道。你意识到，他不是在任性。他是在用一种很笨的方式认识自己的身体。",
+        result: "满天想了很久。“颜色很吵。”他说，“而且它说自己是葡萄，但不像葡萄。我想知道它到底是什么。”你意识到，他正在用一种很笨、很亮的方式认识世界。",
         next: goToPractice,
       },
     ],
@@ -793,16 +802,26 @@ function renderPracticeEvent() {
 
 但队员们全部站在场边看。
 
-他们已经听说这个空降投手很强，也已经听说钟锐只看了三颗球就沉默了很久。
+满天上投手丘前，先低头踩了踩土。
 
-满天站上投手丘，转了转球。他看向你，等你的暗号。`,
+“这里比牛棚软。”他说，“如果三棒站上去，前脚会陷得更慢一点。”
+
+三棒在场边脸色一变：“你为什么突然说我？”
+
+满天很无辜：“因为你的前脚最吵。”
+
+休息区安静了半秒。
+
+然后满天站上投手丘，转了转球。风、土、打者、你的手套，好像都被他一瞬间读进身体里。
+
+他看向你，等你的暗号。`,
     [
       {
         label: "直接测试完整球种",
         desc: "你想知道这副身体到底能执行到什么程度。",
         delta: { sync: 10, load: 18, self: -2, morale: 3 },
         flags: ["mtFirstPracticeSeen", "mtFullPitchMixTested", "rayTestedMTBodyLimit"],
-        result: "第一颗变化球落进你的手套时，场边彻底安静下来。你听见某个队员低声骂了一句。不是不满，是被吓到了。满天看着你的手套，眼睛亮得过分。",
+        result: "第一颗变化球落进你的手套时，场边彻底安静下来。满天的眼睛亮得过分，像终于找到一个能把身体里所有开关同时打开的地方。有队员低声骂了一句。那是被吓到了。",
         next: goToTeamMisread,
       },
       {
@@ -810,7 +829,7 @@ function renderPracticeEvent() {
         desc: "你暂时不碰最锋利的部分，先确认基础。",
         delta: { sync: 6, load: 8, self: 2, morale: 5 },
         flags: ["mtFirstPracticeSeen", "mtFastballControlTested"],
-        result: "满天的快速球一颗颗落进手套。没有花哨变化，但每颗球都像被钉在你想要的位置上。队员们开始小声讨论：如果只是这种球，他们也许还能理解。",
+        result: "满天的快速球一颗颗落进手套。没有花哨变化，但每颗球都像钉在你想要的位置上。他投完以后问：“这样比较像人类投手吗？”队员们开始小声讨论：如果只是这种球，他们也许还能理解。",
         next: goToTeamMisread,
       },
       {
@@ -818,7 +837,7 @@ function renderPracticeEvent() {
         desc: "不只测试满天，也测试队伍能不能面对他。",
         delta: { morale: 8, sync: 4, load: 12, self: 3 },
         flags: ["mtFirstPracticeSeen", "teamFacedMTPitching"],
-        result: "你让队员按平时节奏打。前三个打者几乎没有舒服挥棒。第四个打者勉强擦到球，跑回休息区时表情复杂得像刚看见天气预报变成了数学题。满天回头看你，像是在问：这样可以吗？",
+        result: "你让队员按平时节奏打。前三个打者几乎没有舒服挥棒。第四个勉强擦到球，跑回休息区时满天忽然说：“你的肩膀刚才想逃跑，但是球棒没有同意。”第四个打者愣住。其他队员开始笑。满天回头看你，像是在问：这样也算观察吗？",
         next: goToTeamMisread,
       },
     ],
@@ -831,20 +850,26 @@ function renderTeamMisreadEvent() {
     "日常：队友误解满天",
     `练习赛结束后，有队员在休息区小声说：“那家伙刚才是不是在嘲讽我？”
 
-满天坐在长椅另一端，认真擦着球。他刚才对三棒说“你的身体比你的球棒慢半拍”，语气非常平静。
+满天坐在长椅另一端，认真擦球。
+
+他刚才对三棒说：“你的身体比你的球棒慢半拍。”
+
+三棒问他什么意思。
+
+满天又补了一句：“球棒还想打，身体已经想回去了。”
 
 对他来说，那只是观察。
 
-对队友来说，那听起来像把人拆成零件。
+对队友来说，那听起来像把人拆成零件以后，还顺手写了质检报告。
 
 几个人看向你。`,
     [
       {
         label: "替满天解释",
-        desc: "他不是在嘲讽。他只是不会说人话。",
+        desc: "他没有骂人。他只是还没学会把观察翻译成人话。",
         delta: { morale: 4, sync: 3, self: -1 },
         flags: ["teamMisreadsMTSeen", "rayExplainedMTToTeam"],
-        result: "你简单解释了满天的说话方式。队员们半信半疑，但至少没有继续把敌意堆到他身上。满天抬头看了你一眼，又低头擦球。",
+        result: "你简单解释了满天的说话方式。“他没有骂人。他只是暂时还不知道，观察报告不能直接扔到别人脸上。”满天抬头：“可是他的脸也在挥棒的时候后退了。”你说：“这句也先别说。”",
         next: goToWeekFourManage,
       },
       {
@@ -852,7 +877,7 @@ function renderTeamMisreadEvent() {
         desc: "如果他要留在队里，他也得学着和队友说话。",
         delta: { self: 6, morale: 3, sync: 1 },
         flags: ["teamMisreadsMTSeen", "mtExplainedSelfToTeam"],
-        result: "你没有立刻开口。满天想了一会儿，对三棒说：“我不是讨厌你。我是说你的脚比手诚实。”休息区安静了两秒。然后有人笑出了声。",
+        result: "你没有立刻开口。满天想了一会儿，对三棒说：“我没有讨厌你。我是说你的脚比手诚实。”休息区安静了两秒。然后有人笑出了声。三棒骂了一句，但没有真生气。",
         next: goToWeekFourManage,
       },
       {
@@ -860,7 +885,7 @@ function renderTeamMisreadEvent() {
         desc: "与其解释，不如让他们承认他确实看得准。",
         delta: { morale: 6, self: -4, sync: 2 },
         flags: ["teamMisreadsMTSeen", "rayUsedMTAccuracyToConvinceTeam"],
-        result: "你把三棒刚才的挥棒录像调出来，逐帧指出满天说的“慢半拍”在哪里。队员闭嘴了。但满天看着屏幕，像是突然明白自己刚才被你拿来证明了一件事。",
+        result: "你把三棒刚才的挥棒录像调出来，逐帧指出满天说的“慢半拍”在哪里。队员闭嘴了。满天看着屏幕，忽然说：“原来我的话要变成数据，才比较像可以听的话。”你手里的遥控器停了一下。",
         next: goToWeekFourManage,
       },
     ],
@@ -886,7 +911,7 @@ function renderYewWarningEvent() {
         desc: "你承认紫阳的长期模型比你的临场欲望更可靠。",
         delta: { load: -8, morale: 3, sync: -2 },
         flags: ["yewFirstLoadWarningSeen", "yewWarningAccepted", "yewDataBackup"],
-        result: "你把下一场的配球预案删掉一半。删到最后，你发现最难删的不是球种，而是你自己想接住它们的冲动。",
+        result: "你把下一场的配球预案删掉一半。删到最后，最难删的东西浮出来了：你自己想接住它们的冲动。",
         next: goToFinalOrWarning,
       },
       {
@@ -951,7 +976,7 @@ ${reason}
               title: "Game Over：消失的王牌",
               text: `峡光输了。
 
-不是输掉一场比赛那么简单，而是整个赛季在这里断掉。
+整个赛季在这里断掉。
 
 满天的项目评估没有通过。紫阳试图争取时间，但莫道集团的人比她更快。
 
@@ -1131,7 +1156,7 @@ function renderYewImprovementEvent() {
 
 紫阳冷笑：“那你就继续把眼前的局面全塞给满天？”
 
-你们吵了十分钟，最后都意识到问题不是要不要改，而是钱只能改一个地方。`,
+你们吵了十分钟，最后都意识到真正的问题：钱只能改一个地方。`,
     [
       {
         label: "升级训练器材",
@@ -1178,9 +1203,15 @@ function renderMTCookingEvent() {
     "日常：给满天做饭",
     `训练结束后，满天又在便利店货架前停住。
 
+这次他没有拿糖，指着一排饮料问：“为什么红色的都说自己会让人精神？”
+
 你拎着他的后领把人带回家，打开冰箱。
 
 满天站在厨房门口，看着你拿出食材，问：“今天的饭是为了投球，还是为了吃饭？”
+
+你回头看他。
+
+他补充：“如果是为了投球，味道可以淡一点。如果是为了吃饭，我想吃甜甜的东西。”
 
 这个问题比菜单本身麻烦。`,
     [
@@ -1190,7 +1221,7 @@ function renderMTCookingEvent() {
         cost: 3,
         delta: { load: -8, self: -3, sync: 1 },
         flags: ["mtCookingSeen", "mtStrictHealthMeal"],
-        result: "你做了严格健康餐。满天吃得很认真，也很痛苦。你知道这顿饭对他的身体最好，但他看向盘子的眼神像是在阅读一份处罚决定。",
+        result: "你做了严格健康餐。满天吃得很认真，也很痛苦。他咽下最后一口，评价：“这个饭很安静。安静到像紫阳的数据表。”你知道这顿饭对他的身体最好，但他看向盘子的眼神像是在阅读一份处罚决定。",
         next: goToMosasaurGame,
       },
       {
@@ -1199,7 +1230,7 @@ function renderMTCookingEvent() {
         cost: 5,
         delta: { sync: 8, self: 3, load: 3 },
         flags: ["mtCookingSeen", "mtSweetMeal"],
-        result: "你做了满天想吃的甜食大餐。满天坐在桌边，眼睛亮得像刚接到你给出的暗号。你看着他吃，脑子里已经开始计算明天要怎么把这顿饭补回来。",
+        result: "你做了满天想吃的甜食大餐。满天坐在桌边，眼睛亮得像刚接到你给出的暗号。他吃到一半，认真宣布：“这个味道在跑垒。”你问哪里在跑。他说：“这里。”然后指了指自己的胸口。你脑子里已经开始计算明天要怎么把这顿饭补回来。",
         next: goToMosasaurGame,
       },
       {
@@ -1208,7 +1239,7 @@ function renderMTCookingEvent() {
         cost: 4,
         delta: { load: -4, self: 6, sync: 4 },
         flags: ["mtCookingSeen", "mtChoseMenuWithRay"],
-        result: "你让满天一起商量菜单。他说不清想吃什么，只能说颜色、味道和身体里的感觉。你把那些奇怪描述翻译成一顿勉强合格的饭。",
+        result: "你让满天一起商量菜单。他说不清想吃什么，只能说颜色、味道和身体里的感觉。“不要太直的味道。今天手指已经很直了。”你沉默两秒，把这句话翻译成少盐、温热、软一点。这顿饭勉强合格，但至少是他参与选择的。",
         next: goToMosasaurGame,
       },
       {
@@ -1216,7 +1247,7 @@ function renderMTCookingEvent() {
         desc: "不花钱。今晚先这样糊弄过去。",
         delta: { load: 6, sync: -3, self: -1 },
         flags: ["mtCookingSeen", "mtMealHandledCasually"],
-        result: "你翻出库存里剩下的东西，随便解决了晚饭。满天没有抱怨，但吃完以后还是看了你一会儿。那不是责怪，更像是不明白为什么今天这件事没有被认真安排。",
+        result: "你翻出库存里剩下的东西，随便解决了晚饭。满天没有抱怨。他只是把筷子放下后问：“是因为我今天投得不好吗？”他问得太直，反而不像责怪。你意识到，有些糊弄对他来说像规则突然消失。",
         next: goToMosasaurGame,
       },
     ],
@@ -1231,7 +1262,15 @@ function renderMosasaurGameEvent() {
 
 “今晚打你们看不懂的棒球。”
 
-满天从你身后探头，看见“江陵”这个名字，问：“这是以前钟锐的棒球交际圈吗？”
+满天从你身后探头，看见“江陵”这个名字。
+
+“这是你的朋友吗？”
+
+你说算是。
+
+满天又问：“那他们也是能从身体读懂暗号的人吗？”
+
+你决定暂时不解释前队友、旧搭档和暗号之间到底有什么关系。
 
 沧龙今晚主场。江陵和白城都在先发名单里。去看比赛要花钱，也要花掉一整个晚上。`,
     [
@@ -1241,7 +1280,7 @@ function renderMosasaurGameEvent() {
         cost: 8,
         delta: { self: 4, sync: 3, record: 4 },
         flags: ["mosasaurInviteSeen", "watchedMosasaurGame", "lingChengLineOpened"],
-        result: "你带满天去了沧龙主场。江陵在九局下半挥出一记漂亮安打，白城在待打区笑得像早就知道会这样。满天看完以后说：“他们也像一组投捕吗？”你决定暂时不回答。",
+        result: "你带满天去了沧龙主场。江陵在九局下半挥出一记漂亮安打，白城在待打区笑得像早就知道会这样。满天看完以后说：“他们没有手套暗号，也能互相读懂下一步。”你问他看见了什么。他指向内野：“那个三棒跑起来的时候，四棒已经在替他赢了。”你决定暂时不回答。",
         next: goToMosasaurAfterGame,
       },
       {
@@ -1250,7 +1289,7 @@ function renderMosasaurGameEvent() {
         cost: 5,
         delta: { record: 6, load: -4, sync: -2 },
         flags: ["mosasaurInviteSeen", "rayWatchedMosasaurAlone"],
-        result: "你自己去了沧龙主场。江陵打得很烦，白城处理所有媒体镜头都很熟练。你带回很多有用情报，也带回一个明显不太高兴的满天。",
+        result: "你自己去了沧龙主场。江陵打得很干脆，白城处理所有媒体镜头都很熟练。你带回很多有用情报，也得面对一个无聊到空洞的满天。他问：“你的朋友，比我更需要你看吗？”",
         next: goToFinalOrWarning,
       },
       {
@@ -1259,7 +1298,7 @@ function renderMosasaurGameEvent() {
         cost: 3,
         delta: { record: 3 },
         flags: ["mosasaurInviteSeen", "boughtMosasaurFootage"],
-        result: "你买了录像分析。画面里的江陵和白城依然烦人，但至少他们现在可以被暂停、倒放和标注。满天看了一会儿，问为什么他们不用暗号也知道彼此要做什么。",
+        result: "你买了录像分析。画面里的江陵和白城依然配合天衣无缝，但至少他们现在可以被暂停、倒放和标注。满天看了一会儿，忽然说：“他们不用看手套也知道下一步。这个可以学吗？”",
         next: goToFinalOrWarning,
       },
       {
@@ -1267,7 +1306,7 @@ function renderMosasaurGameEvent() {
         desc: "不花钱。今晚留在峡光这边。",
         delta: { self: -2 },
         flags: ["mosasaurInviteSeen", "skippedMosasaurGameForFunds"],
-        result: "你没有去。钱留给了峡光。满天没有继续问，但那天晚上他翻来覆去看了很多沧龙的公开剪辑。",
+        result: "你没有去。钱留给了峡光。满天没有继续问，但那天晚上他翻来覆去看了很多沧龙的公开剪辑。第二天他问你：“如果读过他们的身体，算是认识他们吗？”",
         next: goToFinalOrWarning,
       },
     ],
@@ -1280,22 +1319,36 @@ function renderMosasaurAfterGameEvent() {
     "日常：沧龙赛后",
     `比赛结束后，沧龙主场的灯还亮着。
 
-江陵从球员通道那边走过来，手里还拎着打击手套。他看见你，第一句话是：“钟锐，你终于舍得带小朋友来看真正的棒球了？”
+江陵从球员通道那边走过来，手里还拎着打击手套。
+
+他看见你，第一句话是：“钟锐，你终于舍得带王牌来看真正的棒球了？”
+
+满天立刻说：“我不止是王牌，我是搭档。”
+
+江陵一愣，笑出声。
 
 白城慢一步跟在后面，先看了满天一眼，又看向你。
 
 “新投手？”白城问。
 
-满天站在你身边，很认真地纠正：“我是满天。”
+满天很认真地纠正：“我是满天。投手是我现在被使用得最多的部分。”
 
-江陵笑了一声。白城没有笑，只是说：“那你最好别只看钟锐的手套。投手如果只看接球手，会错过很多东西。”`,
+这句话让白城的笑意淡了一点。
+
+他看向满天，说：“那你最好别只看钟锐的手套。投手如果只看接球手，会错过很多东西。”
+
+满天问：“比如你看江陵的时候，会错过球吗？”
+
+江陵：“喂。”
+
+白城：“……有时候会。”`,
     [
       {
         label: "和江陵斗嘴",
         desc: "他嘴太欠，不回一句很难受。",
         delta: {},
         flags: ["mosasaurConversationSeen", "rayBickeredWithLingCheng"],
-        result: "你和江陵互相嘲了三分钟。满天在旁边听得很认真，最后小声问：“这是以前队友之间的交流方式吗？”白城说：“不是，主要是江陵有病。”",
+        result: "你和江陵互相嘲了三分钟。满天在旁边听得很认真，最后问：“这是以前队友之间的交流方式，还是攻击行为？”白城说：“这叫朋友。”江陵说：“你们峡光的投手怎么说话也这么烦？”",
         next: goToFinalOrWarning,
       },
       {
@@ -1303,7 +1356,7 @@ function renderMosasaurAfterGameEvent() {
         desc: "你想知道他是不是看出了什么。",
         delta: {},
         flags: ["mosasaurConversationSeen", "rayAskedBaiChengAboutPitcher"],
-        result: "白城看着满天，说投手不能只把自己交给暗号。江陵在旁边插嘴：“他说得委婉，意思是你别把人养成球形遥控器。”你没有立刻反驳。",
+        result: "白城看着满天，说投手不能只把自己交给暗号。江陵在旁边插嘴：“他说得委婉，意思是你别把人养成球形遥控器。”满天低头看自己的手：“球形遥控器不能自己选球种吗？”你没有立刻反驳。",
         next: goToFinalOrWarning,
       },
       {
@@ -1311,7 +1364,7 @@ function renderMosasaurAfterGameEvent() {
         desc: "今晚到这里就够了。",
         delta: {},
         flags: ["mosasaurConversationSeen", "rayLeftMosasaurEarlyWithMT"],
-        result: "你没有让对话继续。走出球场时，满天回头看了一眼沧龙的灯。过了一会儿，他问：“以后我也会有那样的队友吗？”",
+        result: "你没有让对话继续。走出球场时，满天回头看了一眼沧龙的灯。“他们吵得好开心。”他说。过了一会儿，他又问：“以后峡光也会这样吗？”",
         next: goToFinalOrWarning,
       },
     ],
@@ -1326,9 +1379,11 @@ function renderSyncWarmBodyEvent() {
 
 你原本只是路过，却忽然停下来。
 
-他的指尖很凉，额头却有一点不正常的热。满天看着自己的手，说：“这个部分好像又不太听话了。”
+他的指尖很凉，额头却有一点不正常的热。
 
-他说得很平静。像在说一只手套的皮革开始松。`,
+满天低头按了按自己的手腕，说：“这里今天像没有调好的投球机。”
+
+他想了想，又补充：“但投球机不会觉得痒。所以我应该还算满天。”`,
     [
       {
         label: "把外套披给他，先不追问",
@@ -1364,11 +1419,15 @@ function renderSyncSparePartsEvent() {
     "隐藏事件：备用零件",
     `满天帮你整理训练器材时，忽然停了一下。
 
-他的手腕发出很轻的一声响。不是骨头的声音。
+他的手腕发出很轻的一声响。听起来不像骨头。
 
 你还没开口，他已经自己转了转手，说：“如果这里坏掉，应该还有备用的。”
 
-他说得太自然了。像在说球棒裂了，可以换一根。`,
+他说得太自然。
+
+甚至有点高兴，像是发现坏掉也有解决办法。
+
+你却听得后背发冷。`,
     [
       {
         label: "告诉他：你不是器材",
@@ -1393,7 +1452,7 @@ function renderSyncSparePartsEvent() {
         costFailDelta: { sync: -4, self: -2 },
         delta: { sync: 4, load: -8, self: 3 },
         flags: ["syncSparePartsSeen", "mtExtraBodyCheck"],
-        result: "你安排了一次额外检查。满天躺在检测台上时有点紧张，但检查结束后，他很小声地说：“原来今天不是因为我要投球。”",
+        result: "你安排了一次额外检查。满天躺在检测台上时有点紧张。检查结束后，他很小声地说：“原来今天检查我，和今天要不要投球没有关系。”",
         next: continueAfterHiddenEvent,
       },
     ],
@@ -1408,16 +1467,22 @@ function renderSyncCanStillPitchEvent() {
 
 满天站在白板前看了很久。
 
-然后他说：“我今天还能投。”
+“这里没有我的名字。”他说。
 
-他不是在争取训练量。你听得出来。他是在确认：如果今天不投，他是不是还需要留在这里。`,
+你说今天不安排他投球。
+
+他立刻接上：“我今天还能投。”
+
+语速很快，像在抢一个快要关上的窗口。
+
+他在确认：如果今天不投，他还算不算今天的一部分。`,
     [
       {
-        label: "说：不是因为能投才留下你",
+        label: "说：你今天就在这里",
         desc: "你把话说慢一点。",
         delta: { sync: 8, self: 7, load: -3 },
         flags: ["syncCanStillPitchSeen", "rayKeptMTBeyondPitching"],
-        result: "满天看着你，像在等后半句。你没有把后半句变成战术说明。你只是重复了一遍：不是因为能投。",
+        result: "满天看着你，像在等后半句。你没有把后半句变成战术说明。你只是重复了一遍：你今天就在这里。",
         next: continueAfterHiddenEvent,
       },
       {
@@ -1425,7 +1490,7 @@ function renderSyncCanStillPitchEvent() {
         desc: "这似乎能让他安心。",
         delta: { sync: 2, load: 12, self: -5 },
         flags: ["syncCanStillPitchSeen", "rayAskedMorePitchesForComfort"],
-        result: "满天立刻点头。球一颗颗落进你的手套，精准得让人安心。可你越接越清楚：安心的人不是他，是你。",
+        result: "满天立刻点头。球一颗颗落进你的手套，精准得让人安心。你越接越清楚：真正松了一口气的人是你。",
         next: continueAfterHiddenEvent,
       },
       {
