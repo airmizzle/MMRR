@@ -77,10 +77,27 @@ button:hover {
 
 .status-strip {
   display: grid;
-  grid-template-columns: 150px 1fr;
+  grid-template-columns: 150px 1fr auto;
   gap: 10px;
   align-items: stretch;
   padding: 8px;
+}
+
+.tiny-reset {
+  align-self: center;
+  padding: 6px 8px;
+  color: var(--muted);
+  border-color: var(--line);
+  background: rgba(17, 20, 18, 0.62);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.tiny-reset:hover {
+  color: var(--text);
+  border-color: var(--danger);
+  background: rgba(84, 38, 34, 0.5);
 }
 
 .brand {
@@ -407,6 +424,14 @@ button:hover {
   .stats {
     grid-template-columns: repeat(3, minmax(76px, 1fr));
     gap: 5px;
+  }
+
+  .tiny-reset {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    padding: 5px 7px;
+    font-size: 11px;
   }
 
   .content {

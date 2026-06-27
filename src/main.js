@@ -155,6 +155,7 @@ function shell(title, body, options = {}) {
           <h1 class="title">峡之光</h1>
         </div>
         <div class="stats">${rows}</div>
+        <button class="tiny-reset" data-reset title="从头开始">重开</button>
       </header>
       <section class="main-panel">
         <div class="topline">
@@ -165,6 +166,11 @@ function shell(title, body, options = {}) {
       </section>
     </div>
   `;
+
+  const resetButton = app.querySelector("[data-reset]");
+  if (resetButton) {
+    resetButton.addEventListener("click", resetGame);
+  }
 
   window.setTimeout(() => {
     pendingStatChanges = {};

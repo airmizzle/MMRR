@@ -1,4 +1,4 @@
-# 峡之光 Demo v0.1
+# 峡之光 Demo v0.2
 
 MMRR 项目早期试玩 Demo。
 
@@ -33,6 +33,11 @@ Settings -> Pages -> Deploy from a branch -> main -> /root
 - 投捕同步率
 - 满天负荷
 - 满天自我
+- 日常事件
+- 练习赛与联赛交叉
+- 联赛战绩/士气门槛
+- 条件结果事件
+- 提前 Game Over
 - 多结局判定
 
 剧情、UI 和系统都还会继续调整。
