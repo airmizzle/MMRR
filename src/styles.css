@@ -333,6 +333,14 @@ button:hover {
   scrollbar-width: thin;
 }
 
+.page-mark {
+  flex: 0 0 auto;
+  max-width: 760px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+
 .hint {
   max-width: 760px;
   margin-top: 16px;
@@ -655,6 +663,11 @@ button:hover {
     overflow: auto;
     font-size: 13px;
     line-height: 1.42;
+  }
+
+  .page-mark {
+    max-width: none;
+    font-size: 11px;
   }
 
   .actions {

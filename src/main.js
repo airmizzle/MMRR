@@ -215,13 +215,28 @@ function resetGame() {
   render();
 }
 
+function tunedDelta(key, value, before) {
+  if (value <= 0 || !["record", "morale", "sync"].includes(key)) return value;
+  if (before >= 80) return Math.max(1, Math.ceil(value * 0.35));
+  if (before >= 65) return Math.max(1, Math.ceil(value * 0.55));
+  if (before >= 50) return Math.max(1, Math.ceil(value * 0.75));
+  return value;
+}
+
+function flashDirection(key, before, after) {
+  if (after === before) return "";
+  const wentUp = after > before;
+  if (key === "load") return wentUp ? "down" : "up";
+  return wentUp ? "up" : "down";
+}
+
 function changeStats(delta) {
   for (const [key, value] of Object.entries(delta)) {
     const before = state.stats[key] ?? 0;
-    const after = clamp(before + value);
+    const after = clamp(before + tunedDelta(key, value, before));
     state.stats[key] = after;
-    if (after > before) pendingStatChanges[key] = "up";
-    if (after < before) pendingStatChanges[key] = "down";
+    const flash = flashDirection(key, before, after);
+    if (flash) pendingStatChanges[key] = flash;
   }
 }
 
@@ -270,7 +285,7 @@ function getDialogue(speaker) {
     if (state.screen === "ending" && f.firstSeasonContinue) return "别急着高兴。能进第二季，说明问题还活着，不代表问题解决了。";
     if (state.screen === "ending" && f.playoffCollapseSeen) return "我说过红线会来。现在我们只能看还剩多少能修。";
     if (f.playoffCollapseSeen) return "别站在那里发呆。要么叫医疗组，要么让开。";
-    if (f.yewNightWarningSeen) return "季后赛不是不能打。只是你最好记得，漂亮数据也会杀人。";
+    if (f.yewNightWarningSeen) return "季后赛可以打。你最好记得，漂亮数据也会杀人。";
     if (f.playoffCelebrationSeen) return "他们今天很开心。我也是。然后呢？开心不能抵消负荷。";
     if (f.firstMediaSeen) return "下次满天碰话筒之前，先把你自己的措辞想好。";
     if (f.translationGroupSeen) return "队员能听懂满天，是好事。你别把这件事又收回自己手里。";
@@ -500,7 +515,7 @@ function statRows() {
     { key: "record", label: "联赛战绩", value: state.stats.record, text: recordStatus(state.stats.record) },
     { key: "funds", label: "资金", value: state.stats.funds, text: fundsStatus(state.stats.funds) },
     { key: "morale", label: "球队士气", value: state.stats.morale, text: moraleStatus(state.stats.morale) },
-    { key: "sync", label: "投捕同步率", value: state.stats.sync, text: syncStatus(state.stats.sync), danger: state.stats.sync > 75 },
+    { key: "sync", label: "投捕同步率", value: state.stats.sync, text: syncStatus(state.stats.sync) },
     { key: "load", label: "王牌压力值", value: state.stats.load, text: loadStatus(state.stats.load), danger: state.stats.load > 70 },
     { key: "self", label: "王牌自洽值", value: state.stats.self, text: selfStatus(state.stats.self) },
   ];
@@ -601,33 +616,112 @@ function renderMenu() {
   app.querySelector('[data-action="import"]').addEventListener("click", importSaveCode);
 }
 
-function storyScreen(title, text, nextLabel, next) {
-  shell(title, `
-    <h2 class="screen-title">${title}</h2>
-    <div class="prose">${text}</div>
-    <div class="primary-row">
-      <button class="primary-btn" data-next>${nextLabel}</button>
-    </div>
-  `, { weekText: "剧情" });
+function splitLongParagraph(paragraph, limit) {
+  const pages = [];
+  let rest = paragraph.trim();
+  while (rest.length > limit) {
+    const searchFrom = Math.max(80, limit - 120);
+    const searchTo = Math.min(rest.length, limit + 80);
+    const slice = rest.slice(searchFrom, searchTo);
+    const punct = Math.max(
+      slice.lastIndexOf("。"),
+      slice.lastIndexOf("？"),
+      slice.lastIndexOf("！"),
+      slice.lastIndexOf("”")
+    );
+    const cut = punct >= 0 ? searchFrom + punct + 1 : limit;
+    pages.push(rest.slice(0, cut).trim());
+    rest = rest.slice(cut).trim();
+  }
+  if (rest) pages.push(rest);
+  return pages;
+}
 
-  app.querySelector("[data-next]").addEventListener("click", next);
+function textPages(text, limit = 430) {
+  const chunks = String(text)
+    .split(/\n{2,}/)
+    .map((chunk) => chunk.trim())
+    .filter(Boolean);
+  const pages = [];
+  let current = "";
+
+  chunks.forEach((chunk) => {
+    const paragraphPages = chunk.length > limit ? splitLongParagraph(chunk, limit) : [chunk];
+    paragraphPages.forEach((part) => {
+      if (!current) {
+        current = part;
+        return;
+      }
+      if (`${current}\n\n${part}`.length > limit) {
+        pages.push(current);
+        current = part;
+      } else {
+        current = `${current}\n\n${part}`;
+      }
+    });
+  });
+
+  if (current) pages.push(current);
+  return pages.length ? pages : [""];
+}
+
+function storyScreen(title, text, nextLabel, next) {
+  const pages = textPages(text);
+  let page = 0;
+
+  const renderPage = () => {
+    const isLast = page >= pages.length - 1;
+    shell(title, `
+      <h2 class="screen-title">${title}</h2>
+      <div class="prose">${pages[page]}</div>
+      ${pages.length > 1 ? `<div class="page-mark">${page + 1}/${pages.length}</div>` : ""}
+      <div class="primary-row">
+        <button class="primary-btn" data-next>${isLast ? nextLabel : "继续"}</button>
+      </div>
+    `, { weekText: "剧情" });
+
+    app.querySelector("[data-next]").addEventListener("click", () => {
+      if (!isLast) {
+        page += 1;
+        renderPage();
+        return;
+      }
+      next();
+    });
+  };
+
+  renderPage();
 }
 
 function outcomeScreen(title, text, next, weekText = "结果", options = {}) {
-  shell(title, `
-    <h2 class="screen-title">${title}</h2>
-    <div class="prose">${text}</div>
-    <div class="primary-row">
-      <button class="primary-btn" data-outcome-next>继续</button>
-    </div>
-  `, { weekText });
+  const pages = textPages(text);
+  let page = 0;
 
-  app.querySelector("[data-outcome-next]").addEventListener("click", () => {
-    if (options.clearLogBeforeNext) state.log = "";
-    next();
-    saveState();
-    render();
-  });
+  const renderPage = () => {
+    const isLast = page >= pages.length - 1;
+    shell(title, `
+      <h2 class="screen-title">${title}</h2>
+      <div class="prose">${pages[page]}</div>
+      ${pages.length > 1 ? `<div class="page-mark">${page + 1}/${pages.length}</div>` : ""}
+      <div class="primary-row">
+        <button class="primary-btn" data-outcome-next>继续</button>
+      </div>
+    `, { weekText });
+
+    app.querySelector("[data-outcome-next]").addEventListener("click", () => {
+      if (!isLast) {
+        page += 1;
+        renderPage();
+        return;
+      }
+      if (options.clearLogBeforeNext) state.log = "";
+      next();
+      saveState();
+      render();
+    });
+  };
+
+  renderPage();
 }
 
 function renderStory() {
@@ -1672,7 +1766,7 @@ function renderFirstMediaEvent() {
         desc: "今天到这里。你不想让他继续被问下去。",
         delta: { sync: 5, funds: -3, morale: -2 },
         flags: ["firstMediaSeen", "rayLeftMediaWithMT"],
-        result: "你带满天离开发布会。走廊里安静下来以后，满天问：“刚才不能说吗？”你说不是不能。只是有些话说出去以后，会被很多人拿走。",
+        result: "你带满天离开发布会。走廊里安静下来以后，满天问：“刚才不能说吗？”你说可以说。只是有些话说出去以后，会被很多人拿走。",
         next: goToMosasaurTapeNight,
       },
     ],
