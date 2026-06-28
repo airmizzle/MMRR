@@ -216,10 +216,10 @@ function resetGame() {
 }
 
 function tunedDelta(key, value, before) {
-  if (value <= 0 || !["record", "morale", "sync"].includes(key)) return value;
-  if (before >= 80) return Math.max(1, Math.ceil(value * 0.35));
-  if (before >= 65) return Math.max(1, Math.ceil(value * 0.55));
-  if (before >= 50) return Math.max(1, Math.ceil(value * 0.75));
+  if (value <= 0 || !["record", "morale", "sync", "self"].includes(key)) return value;
+  if (before >= 80) return Math.max(1, Math.ceil(value * 0.25));
+  if (before >= 65) return Math.max(1, Math.ceil(value * 0.45));
+  if (before >= 50) return Math.max(1, Math.ceil(value * 0.65));
   return value;
 }
 
@@ -637,7 +637,12 @@ function splitLongParagraph(paragraph, limit) {
   return pages;
 }
 
-function textPages(text, limit = 430) {
+function pageLimit() {
+  if (typeof window !== "undefined" && window.matchMedia?.("(max-width: 780px)").matches) return 190;
+  return 430;
+}
+
+function textPages(text, limit = pageLimit()) {
   const chunks = String(text)
     .split(/\n{2,}/)
     .map((chunk) => chunk.trim())
@@ -788,43 +793,63 @@ function renderStory() {
 }
 
 function choiceEvent(title, text, choices, weekText = "事件") {
-  const buttons = choices
-    .map((choice, index) => `
-      <button class="choice-btn" data-choice="${index}">
-        <strong>${choice.label}</strong>
-        <span>${choice.desc}</span>
-      </button>
-    `)
-    .join("");
+  const pages = textPages(text);
+  let page = 0;
 
-  shell(title, `
-    <h2 class="screen-title">${title}</h2>
-    <div class="prose">${text}</div>
-    <div class="choices">${buttons}</div>
-    ${state.log ? `<div class="log">${state.log}</div>` : ""}
-  `, { weekText });
+  const renderChoicePage = () => {
+    const isLast = page >= pages.length - 1;
+    const buttons = isLast
+      ? choices
+        .map((choice, index) => `
+          <button class="choice-btn" data-choice="${index}">
+            <strong>${choice.label}</strong>
+            <span>${choice.desc}</span>
+          </button>
+        `)
+        .join("")
+      : "";
 
-  app.querySelectorAll("[data-choice]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const choice = choices[Number(button.dataset.choice)];
-      const beforeItems = inventoryNames();
-      if (choice.cost && state.stats.funds < choice.cost) {
-        state.log = `资金不足。你看了一眼账户余额，把这个方案从脑子里划掉。`;
-        if (choice.costFailDelta) changeStats(choice.costFailDelta);
-        pendingStatChanges.funds = "down";
-        saveState();
-        render();
-        return;
-      }
-      if (choice.cost) changeStats({ funds: -choice.cost });
-      if (choice.delta) changeStats(choice.delta);
-      if (choice.flags) choice.flags.forEach(addFlag);
-      state.log = `${choice.result}${itemGainText(beforeItems)}`;
-      outcomeScreen(title, state.log, () => {
-        if (!maybeTriggerSyncHiddenEvent(choice.next)) choice.next();
-      }, weekText, { clearLogBeforeNext: true });
+    shell(title, `
+      <h2 class="screen-title">${title}</h2>
+      <div class="prose">${pages[page]}</div>
+      ${pages.length > 1 ? `<div class="page-mark">${page + 1}/${pages.length}</div>` : ""}
+      ${isLast ? `<div class="choices">${buttons}</div>` : `
+        <div class="primary-row">
+          <button class="primary-btn" data-choice-page-next>继续</button>
+        </div>
+      `}
+      ${state.log ? `<div class="log">${state.log}</div>` : ""}
+    `, { weekText });
+
+    app.querySelector("[data-choice-page-next]")?.addEventListener("click", () => {
+      page += 1;
+      renderChoicePage();
     });
-  });
+
+    app.querySelectorAll("[data-choice]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const choice = choices[Number(button.dataset.choice)];
+        const beforeItems = inventoryNames();
+        if (choice.cost && state.stats.funds < choice.cost) {
+          state.log = `资金不足。你看了一眼账户余额，把这个方案从脑子里划掉。`;
+          if (choice.costFailDelta) changeStats(choice.costFailDelta);
+          pendingStatChanges.funds = "down";
+          saveState();
+          render();
+          return;
+        }
+        if (choice.cost) changeStats({ funds: -choice.cost });
+        if (choice.delta) changeStats(choice.delta);
+        if (choice.flags) choice.flags.forEach(addFlag);
+        state.log = `${choice.result}${itemGainText(beforeItems)}`;
+        outcomeScreen(title, state.log, () => {
+          if (!maybeTriggerSyncHiddenEvent(choice.next)) choice.next();
+        }, weekText, { clearLogBeforeNext: true });
+      });
+    });
+  };
+
+  renderChoicePage();
 }
 
 function renderEvent() {
@@ -1994,6 +2019,29 @@ function finishFirstSeason(decision) {
   const team = teamSupportScore();
   const publicScore = publicSupportScore();
   const base = playoffResultText();
+  const caredForMT = [
+    "restedMT",
+    "rayManagedMTRecovery",
+    "rayManagedMTBody",
+    "rayAskedMTPerception",
+    "rayKeptBasicWork",
+    "rayDiscussedPartnership",
+    "rayChoseHomeOverTape",
+    "rayAskedForMaintenancePlan",
+    "playoffCollapseAskedPain",
+    "playoffCollapseAskedMTFear",
+    "playoffCollapseNeededBeyondPitch",
+  ].filter((flag) => state.flags[flag]).length;
+  const protectedMT = [
+    "yewWarningAccepted",
+    "rayPromisedYewToLimitMT",
+    "rayAskedForMaintenancePlan",
+    "playoffBasicMixUsed",
+    "yewCheckedMTInPlayoff",
+    "playoffCollapseBenchedMT",
+    "playoffCollapseComfortedMT",
+    "playoffCollapseNeededBeyondPitch",
+  ].filter((flag) => state.flags[flag]).length;
 
   state.flags.firstSeasonContinue = false;
 
@@ -2084,7 +2132,7 @@ function finishFirstSeason(decision) {
 
 但满天的崩溃让故事停在这里。峡光还会往前走，只是投手丘上不会再有那个能把你的暗号全部点亮的人。`,
     };
-  } else if (load < 82 && self >= 50 && sync >= 45 && (decision === "mound" || state.flags.playoffBasicMixUsed || state.flags.rayKeptBasicWork)) {
+  } else if (load < 78 && self >= 58 && sync >= 52 && caredForMT >= 3 && protectedMT >= 1 && (decision === "mound" || state.flags.playoffBasicMixUsed || state.flags.rayKeptBasicWork)) {
     state.flags.firstSeasonContinue = true;
     state.endingOverride = {
       title: "Continue：第一颗直球",
@@ -2098,7 +2146,7 @@ function finishFirstSeason(decision) {
 
 第二季，将从这颗直球开始。`,
     };
-  } else if (load < 88 && morale >= 55 && team >= 2 && (decision === "yew" || decision === "bench" || decision === "comfort")) {
+  } else if (load < 82 && morale >= 58 && record >= 52 && team >= 3 && protectedMT >= 2 && (decision === "yew" || decision === "bench" || decision === "comfort")) {
     state.flags.firstSeasonContinue = true;
     state.endingOverride = {
       title: "Continue：峡光仍在",
@@ -2112,7 +2160,7 @@ function finishFirstSeason(decision) {
 
 第二季，峡光必须学会一起保护自己的王牌。`,
     };
-  } else if (load < 88 && record >= 60 && morale >= 50 && publicScore >= 2 && self >= 45) {
+  } else if (load < 82 && record >= 64 && morale >= 55 && publicScore >= 2 && self >= 52 && caredForMT >= 2) {
     state.flags.firstSeasonContinue = true;
     state.endingOverride = {
       title: "Continue：无法被消失的人",
@@ -2476,14 +2524,14 @@ const actions = [
     id: "train",
     title: "训练队员",
     desc: "士气和战绩会上升，但会消耗本就不宽裕的资金。",
-    delta: { morale: 10, record: 5, funds: -5 },
+    delta: { morale: 6, record: 3, funds: -5 },
     log: "你把训练切成更细的模块。队员们骂得很小声，但动作开始像样。",
   },
   {
     id: "report",
     title: "写分析报告",
     desc: "资金会好看一点，但球队今晚少了一段训练。",
-    delta: { funds: 15, morale: -3 },
+    delta: { funds: 12, morale: -4 },
     flag: "rayReportOverTraining",
     log: "你熬夜写完一份高价报告。账户好看了一点，训练表空了一块。",
   },
@@ -2491,7 +2539,7 @@ const actions = [
     id: "field",
     title: "整修球场",
     desc: "夕阳很好看，但坏灯和漏水会实打实影响比赛。",
-    delta: { funds: -15, morale: 5, record: 5 },
+    delta: { funds: -15, morale: 4, record: 3 },
     flag: "fieldRepaired",
     log: "旧球场终于少了几个能让人分心的问题。它仍然破，但开始像主场。",
   },
@@ -2499,7 +2547,7 @@ const actions = [
     id: "scout",
     title: "研究对手",
     desc: "最像你的办法，但你把时间给了对手，不是队友。",
-    delta: { record: 10, morale: -2 },
+    delta: { record: 6, morale: -4 },
     flag: "rayScoutOverTraining",
     log: "对手打线被拆成一格一格的弱点。你知道该怎么让他们不舒服。",
   },
@@ -2508,7 +2556,7 @@ const actions = [
     title: "陪满天恢复",
     desc: "负荷会下降，但你们要放弃一部分短期战绩。",
     requiresMT: true,
-    delta: { load: -15, self: 5, sync: 3, record: -3 },
+    delta: { load: -12, self: 3, sync: 2, record: -4 },
     flags: ["restedMT", "rayManagedMTRecovery"],
     log: "满天不太理解为什么今天不多投。你没解释太多，只把恢复表推到他面前。",
   },
@@ -2517,7 +2565,7 @@ const actions = [
     title: "和满天谈谈",
     desc: "同步和自我会上升，但这会吃掉球队训练时间。",
     requiresMT: true,
-    delta: { self: 10, sync: 4, morale: -2 },
+    delta: { self: 5, sync: 3, morale: -3 },
     flags: ["askedMT"],
     log: "满天想了很久，说他不知道答案。至少这一次，问题是他自己的。",
   },
