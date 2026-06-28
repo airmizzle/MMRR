@@ -217,10 +217,10 @@ function resetGame() {
 
 function tunedDelta(key, value, before) {
   if (value <= 0 || !["record", "morale", "sync", "self"].includes(key)) return value;
-  if (before >= 80) return Math.max(1, Math.ceil(value * 0.25));
-  if (before >= 65) return Math.max(1, Math.ceil(value * 0.45));
-  if (before >= 50) return Math.max(1, Math.ceil(value * 0.65));
-  return value;
+  if (before >= 80) return Math.max(1, Math.ceil(value * 0.18));
+  if (before >= 65) return Math.max(1, Math.ceil(value * 0.32));
+  if (before >= 50) return Math.max(1, Math.ceil(value * 0.5));
+  return Math.max(1, Math.ceil(value * 0.75));
 }
 
 function flashDirection(key, before, after) {
@@ -638,8 +638,7 @@ function splitLongParagraph(paragraph, limit) {
 }
 
 function pageLimit() {
-  if (typeof window !== "undefined" && window.matchMedia?.("(max-width: 780px)").matches) return 190;
-  return 430;
+  return 240;
 }
 
 function textPages(text, limit = pageLimit()) {
@@ -2132,7 +2131,7 @@ function finishFirstSeason(decision) {
 
 但满天的崩溃让故事停在这里。峡光还会往前走，只是投手丘上不会再有那个能把你的暗号全部点亮的人。`,
     };
-  } else if (load < 78 && self >= 58 && sync >= 52 && caredForMT >= 3 && protectedMT >= 1 && (decision === "mound" || state.flags.playoffBasicMixUsed || state.flags.rayKeptBasicWork)) {
+  } else if (load < 70 && self >= 62 && sync >= 58 && caredForMT >= 4 && protectedMT >= 2 && (decision === "mound" || state.flags.playoffBasicMixUsed || state.flags.rayKeptBasicWork)) {
     state.flags.firstSeasonContinue = true;
     state.endingOverride = {
       title: "Continue：第一颗直球",
@@ -2146,7 +2145,7 @@ function finishFirstSeason(decision) {
 
 第二季，将从这颗直球开始。`,
     };
-  } else if (load < 82 && morale >= 58 && record >= 52 && team >= 3 && protectedMT >= 2 && (decision === "yew" || decision === "bench" || decision === "comfort")) {
+  } else if (load < 76 && morale >= 62 && record >= 58 && team >= 4 && protectedMT >= 3 && (decision === "yew" || decision === "bench" || decision === "comfort")) {
     state.flags.firstSeasonContinue = true;
     state.endingOverride = {
       title: "Continue：峡光仍在",
@@ -2160,7 +2159,7 @@ function finishFirstSeason(decision) {
 
 第二季，峡光必须学会一起保护自己的王牌。`,
     };
-  } else if (load < 82 && record >= 64 && morale >= 55 && publicScore >= 2 && self >= 52 && caredForMT >= 2) {
+  } else if (load < 76 && record >= 68 && morale >= 60 && publicScore >= 3 && self >= 58 && caredForMT >= 3 && protectedMT >= 1) {
     state.flags.firstSeasonContinue = true;
     state.endingOverride = {
       title: "Continue：无法被消失的人",
