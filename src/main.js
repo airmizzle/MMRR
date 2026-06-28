@@ -43,6 +43,8 @@ const initialState = {
     playoffCollapseSeen: false,
     playoffFirstGameWon: false,
     firstSeasonContinue: false,
+    playoffDugoutTalkSeen: false,
+    playoffMentalCrashSeen: false,
     syncWarmBodySeen: false,
     syncSparePartsSeen: false,
     syncCanStillPitchSeen: false,
@@ -66,6 +68,7 @@ const initialState = {
   hiddenReturnKey: "",
   playoffScore: 0,
   collapseLevel: "medium",
+  collapseDecision: "",
 };
 
 let state = normalizeState(loadState()) || structuredClone(initialState);
@@ -114,6 +117,7 @@ function normalizeState(saved) {
     hiddenReturnKey: saved.hiddenReturnKey ?? fresh.hiddenReturnKey,
     playoffScore: saved.playoffScore ?? fresh.playoffScore,
     collapseLevel: saved.collapseLevel ?? fresh.collapseLevel,
+    collapseDecision: saved.collapseDecision ?? fresh.collapseDecision,
   };
 }
 
@@ -730,6 +734,8 @@ function renderEvent() {
   if (state.phase === "playoff-celebration") return renderPlayoffCelebrationEvent();
   if (state.phase === "yew-night-warning") return renderYewNightWarningEvent();
   if (state.phase === "playoff-collapse") return renderPlayoffCollapseEvent();
+  if (state.phase === "playoff-dugout") return renderPlayoffDugoutEvent();
+  if (state.phase === "playoff-mental-crash") return renderPlayoffMentalCrashEvent();
   if (state.phase === "sync-warm-body") return renderSyncWarmBodyEvent();
   if (state.phase === "sync-spare-parts") return renderSyncSparePartsEvent();
   if (state.phase === "sync-can-still-pitch") return renderSyncCanStillPitchEvent();
@@ -1932,7 +1938,7 @@ function finishFirstSeason(decision) {
 
 你和满天还可以互相看见。只是所有压力仍会回到你们两个人身上。`,
     };
-  } else if (load < 75 && self < 45 && (decision === "bench" || decision === "yew")) {
+  } else if (load < 75 && self < 45 && (decision === "bench" || decision === "yew" || decision === "comfort")) {
     state.endingOverride = {
       title: "Normal End：被保护的王牌",
       text: `${base}
@@ -1970,7 +1976,7 @@ function finishFirstSeason(decision) {
 
 第二季，将从这颗直球开始。`,
     };
-  } else if (load < 88 && morale >= 55 && team >= 2 && (decision === "yew" || decision === "bench")) {
+  } else if (load < 88 && morale >= 55 && team >= 2 && (decision === "yew" || decision === "bench" || decision === "comfort")) {
     state.flags.firstSeasonContinue = true;
     state.endingOverride = {
       title: "Continue：峡光仍在",
@@ -2024,54 +2030,146 @@ function renderPlayoffCollapseEvent() {
         ? "medium"
         : "light";
 
-  choiceEvent(
+  storyScreen(
     "季后赛：满天崩溃",
     `满天站在投手丘上，手里的球没有立刻投出去。
 
-他低头看自己的手，像那只手突然变成了需要重新读懂的东西。
+他低头看自己的右手，像那只手突然变成了需要重新读懂的东西。
 
 全场还在喊，队友还在等，比分还挂在记分板上。
 
-满天抬头看你，第一句话还是：“我还能投。”
+你从本垒后方站起来。
 
-紫阳已经从休息区站了起来。
+下一秒，他试图完成出手动作。肩膀先滞住，手肘跟着失去方向，球从指尖滑出去，砸在本垒板前方。
 
-你知道，崩溃已经发生。现在的问题只剩下，谁来接住它。${highLoad ? "\n\n他的脸色白得很快，连灯光都压不住。" : ""}`,
+那不是暴投。
+
+那是一整条手臂突然断开了原本的投球路径。
+
+满天站在投手丘上，像还想把动作补完。可他的右手已经垂下去，手指不受控制地蜷了一下。然后他膝盖一软，倒在投手丘上。
+
+全场的声音从很远的地方退开。
+
+你掀掉面罩冲上去。紫阳也从休息区冲出来，声音第一次尖得不像她。
+
+满天被你和队员一起架回休息区。他很轻，轻得让你发冷。他靠在你身上，还在看投手丘。
+
+“我还能投。”他说。
+
+你知道，身体崩溃已经发生。${highLoad ? "\n\n他的脸色白得很快，连灯光都压不住。" : ""}`,
+    "架他回休息区",
+    () => {
+      state.flags.playoffCollapseSeen = true;
+      state.screen = "event";
+      state.phase = "playoff-dugout";
+      saveState();
+      render();
+    }
+  );
+}
+
+function renderPlayoffDugoutEvent() {
+  choiceEvent(
+    "休息区：我还想投",
+    `休息区里乱成一团。
+
+紫阳跪在满天面前检查他的手臂，医疗组的人把器材箱打开。队员们围在外面，没人敢说话。
+
+满天坐在长椅上，右手被紫阳按住，左手却还抓着球。
+
+他看着你，声音很轻。
+
+“我还想投。”
+
+你知道他现在听不进比赛，听不进比分，甚至听不进疼。
+
+他只在确认一件事：如果不能投，他还会不会被你需要。`,
     [
       {
-        label: "立刻换下满天",
-        desc: "先让身体停下来。之后的解释，之后再说。",
+        label: "强硬告诉他：你的身体不能投",
+        desc: "先把事实钉住，不让他继续往投手丘走。",
         delta: { load: -12, self: -4, sync: -2, morale: 2 },
         flags: ["playoffCollapseBenchedMT", "rayDecidedForMTBody"],
-        result: "你叫停比赛，换下满天。满天没有反抗，只是一直看着你的手套。下场经过你身边时，他问得很轻：“刚才那颗，也不能投了吗？”",
-        next: () => finishFirstSeason("bench"),
+        result: "你说不能投。你的身体现在不能投。满天很快点头，像听见了一条可以执行的指令。可他点完头以后，眼睛仍然停在你的手套上，像规则已经执行，身体却还没找到新的位置。",
+        next: () => {
+          state.collapseDecision = "bench";
+          state.screen = "event";
+          state.phase = "playoff-mental-crash";
+        },
       },
       {
-        label: "走上投手丘问他",
-        desc: "你先确认他想投，还是只是不敢停。",
-        delta: { sync: 6, self: 8, load: -4 },
-        flags: ["playoffCollapseAskedMT", "mtAskedOnMound"],
-        result: "你走上投手丘，挡住一部分灯光。你问他现在想怎么做。满天张了张嘴，第一次没有立刻说还能投。他看着自己的手，又看向你的手套。",
-        next: () => finishFirstSeason("mound"),
+        label: "安慰他，先问哪里疼",
+        desc: "先确认他的身体，把他从比赛里拉回来。",
+        delta: { load: -10, self: 4, sync: 3, morale: 2 },
+        flags: ["playoffCollapseComfortedMT", "playoffCollapseAskedPain"],
+        result: "你蹲下来，问他哪里疼，手指能不能动，肩膀有没有感觉。满天愣了一下，像第一次发现你问的不是球。他慢慢低头看自己的手，说：“这里很吵。这里听不见球了。”",
+        next: () => {
+          state.collapseDecision = "comfort";
+          state.screen = "event";
+          state.phase = "playoff-mental-crash";
+        },
       },
       {
-        label: "继续让他投一球",
-        desc: "也许只差这一颗。也许这一颗会决定一切。",
-        delta: { load: 25, sync: 5, self: -8 },
-        flags: ["playoffCollapsePushedOneMore", "rayOverusedMTForWin"],
-        result: "你给出暗号。满天像终于找回规则一样点头。那颗球投出来的时候，所有人都看见了它的漂亮，也看见了漂亮之后突然断掉的动作。",
-        next: () => finishFirstSeason("continue"),
+        label: "问他：你想投，还是害怕停下来",
+        desc: "你把他最深的恐惧直接问出来。",
+        delta: { sync: 5, self: 8, load: -4 },
+        flags: ["playoffCollapseAskedMTFear", "mtAskedOnMound"],
+        result: "你问他，是想投，还是害怕停下来。满天的呼吸断了一拍。他看着你，嘴唇动了很久，最后只说：“停下来以后，你还在本垒后面吗？”",
+        next: () => {
+          state.collapseDecision = "mound";
+          state.screen = "event";
+          state.phase = "playoff-mental-crash";
+        },
       },
       {
-        label: "叫紫阳上来",
-        desc: "你让出一部分控制，把判断交给能处理身体的人。",
-        delta: { load: -10, self: 3, sync: -1, morale: 3 },
-        flags: ["playoffCollapseCalledYew", "yewTrustHigh"],
-        result: "你叫紫阳上来。她没有问你为什么终于肯叫她，只是伸手扶住满天的手腕。满天看着你，像在确认这是不是你的暗号。你点头。",
-        next: () => finishFirstSeason("yew"),
+        label: "说：我还需要你，但不是这一球",
+        desc: "你明确把需要从这场比赛里拆出来。",
+        delta: { sync: 6, self: 7, load: -6, morale: 1 },
+        flags: ["playoffCollapseNeededBeyondPitch", "yewTrustHigh"],
+        result: "你说我还需要你，这一球先停下。满天看着你，像听见一条完全陌生的配球。他问：“不投，也需要？”你说，是。紫阳低头继续固定他的手臂，没有打断你。",
+        next: () => {
+          state.collapseDecision = "yew";
+          state.screen = "event";
+          state.phase = "playoff-mental-crash";
+        },
       },
     ],
     "季后赛崩溃"
+  );
+}
+
+function renderPlayoffMentalCrashEvent() {
+  const decision = state.collapseDecision || "bench";
+  storyScreen(
+    "休息区：精神崩溃",
+    `满天没有再说要投。
+
+这比他说要投更糟。
+
+他低头看着自己被固定住的右手，左手里那颗球慢慢滚到地上。他想弯腰去捡，身体却被紫阳按住。
+
+“我没有投完。”他说。
+
+没有人回答。
+
+满天抬头看你，眼神第一次偏离暗号，在找一个能继续存在的位置。
+
+“如果今天不投，”他说，“我今天还算王牌吗？”
+
+紫阳闭了一下眼。队员们站在休息区外，安静得像整支队伍都被按下暂停。
+
+满天的呼吸越来越乱。他开始反复说自己还能投，说下一局还需要他，说手套还在等。他说到最后，句子碎掉了，只剩下几个词：投球、手套、下一局、我。
+
+你伸手去扶他，他抓住你的护具，力气很轻，却像溺水。
+
+身体崩溃之后，精神也终于崩塌。`,
+    "进入赛后",
+    () => {
+      state.flags.playoffMentalCrashSeen = true;
+      finishFirstSeason(decision);
+      saveState();
+      render();
+    }
   );
 }
 
@@ -2942,13 +3040,36 @@ v0.7 之后，第一季结局会通过季后赛崩溃后的中期结局矩阵结
 
 function renderEnding() {
   const ending = endingData();
+  const canContinue = state.flags.firstSeasonContinue || ending.title.startsWith("Continue");
   shell("结局", `
     <h2 class="screen-title">${ending.title}</h2>
     <div class="prose">${ending.text}</div>
     <div class="primary-row">
-      <button class="primary-btn" data-restart>重新开始</button>
+      <button class="primary-btn" data-ending-action>${canContinue ? "进入下一局" : "重新开始"}</button>
     </div>
   `, { weekText: "Demo结束" });
+
+  app.querySelector("[data-ending-action]").addEventListener("click", () => {
+    if (canContinue) {
+      state.screen = "continued";
+      saveState();
+      render();
+      return;
+    }
+    resetGame();
+  });
+}
+
+function renderContinued() {
+  shell("下一局", `
+    <h2 class="screen-title">To be continued...</h2>
+    <div class="prose">第二季尚未开放。
+
+满天的第一季停在这里。下一局，会从崩溃之后开始。</div>
+    <div class="primary-row">
+      <button class="primary-btn" data-restart>重新开始</button>
+    </div>
+  `, { weekText: "未完待续" });
 
   app.querySelector("[data-restart]").addEventListener("click", resetGame);
 }
@@ -2962,6 +3083,7 @@ function render() {
   if (state.screen === "game") renderGame();
   if (state.screen === "result") renderResult();
   if (state.screen === "ending") renderEnding();
+  if (state.screen === "continued") renderContinued();
 }
 
 render();
