@@ -34,6 +34,15 @@ const initialState = {
     watchedMosasaurGame: false,
     mosasaurConversationSeen: false,
     mtDebutGameDone: false,
+    gloveAliveSeen: false,
+    translationGroupSeen: false,
+    firstMediaSeen: false,
+    mosasaurTapeNightSeen: false,
+    playoffCelebrationSeen: false,
+    yewNightWarningSeen: false,
+    playoffCollapseSeen: false,
+    playoffFirstGameWon: false,
+    firstSeasonContinue: false,
     syncWarmBodySeen: false,
     syncSparePartsSeen: false,
     syncCanStillPitchSeen: false,
@@ -55,6 +64,8 @@ const initialState = {
   currentOpponent: "",
   crisisReturnPhase: "final-offense",
   hiddenReturnKey: "",
+  playoffScore: 0,
+  collapseLevel: "medium",
 };
 
 let state = normalizeState(loadState()) || structuredClone(initialState);
@@ -101,6 +112,8 @@ function normalizeState(saved) {
     currentOpponent: saved.currentOpponent ?? fresh.currentOpponent,
     crisisReturnPhase: saved.crisisReturnPhase ?? fresh.crisisReturnPhase,
     hiddenReturnKey: saved.hiddenReturnKey ?? fresh.hiddenReturnKey,
+    playoffScore: saved.playoffScore ?? fresh.playoffScore,
+    collapseLevel: saved.collapseLevel ?? fresh.collapseLevel,
   };
 }
 
@@ -208,6 +221,15 @@ function getDialogue(speaker) {
   const f = state.flags;
   if (speaker === "mt") {
     if (!f.metMT) return "投手丘上还没有那个会把球精准投进你手套的人。";
+    if (state.screen === "ending" && f.firstSeasonContinue) return "下一次，我还能投给你吗？如果只剩直球，也可以。";
+    if (state.screen === "ending" && f.playoffCollapseSeen) return "投手丘还在吗？你也还在本垒后方吗？";
+    if (f.playoffCollapseSeen) return "刚才手指没有听见球缝。我不喜欢那种安静。";
+    if (f.yewNightWarningSeen) return "紫阳看我的时候，像在看一场还没发生的雨。季后赛会下雨吗？";
+    if (f.playoffCelebrationSeen) return "庆功宴的声音很多。三棒笑的时候，肩膀终于没有逃跑。";
+    if (f.mosasaurTapeNightSeen) return "江陵和白城会把地方让给对方。那我摇头的时候，你会让地方给我吗？";
+    if (f.firstMediaSeen) return "话筒不会接球，但会把话传很远。那我刚才的话也在跑垒吗？";
+    if (f.translationGroupSeen) return "他们今天听懂了三句。还有七句没有懂，但已经很好了。";
+    if (f.gloveAliveSeen) return "你的手套今天睡醒了吗？它昨天叫球的声音很亮。";
     if (s.sync <= 10) return "你今天没有立刻给暗号。你觉得我不能理解暗号吗？";
     if (s.load >= 70) return "手指有点热，像球缝在里面长出来了。你现在还想接我的球吗？";
     if (s.self <= 20) return "如果今天不让我投，我应该做什么？坐着等，还是继续练？";
@@ -222,18 +244,35 @@ function getDialogue(speaker) {
   }
 
   if (speaker === "yew") {
+    if (state.screen === "ending" && f.firstSeasonContinue) return "别急着高兴。能进第二季，说明问题还活着，不代表问题解决了。";
+    if (state.screen === "ending" && f.playoffCollapseSeen) return "我说过红线会来。现在我们只能看还剩多少能修。";
+    if (f.playoffCollapseSeen) return "别站在那里发呆。要么叫医疗组，要么让开。";
+    if (f.yewNightWarningSeen) return "季后赛不是不能打。只是你最好记得，漂亮数据也会杀人。";
+    if (f.playoffCelebrationSeen) return "他们今天很开心。我也是。然后呢？开心不能抵消负荷。";
+    if (f.firstMediaSeen) return "下次满天碰话筒之前，先把你自己的措辞想好。";
+    if (f.translationGroupSeen) return "队员能听懂满天，是好事。你别把这件事又收回自己手里。";
+    if (f.gloveAliveSeen) return "你们两个昨天的加练数据很好看。太好看了。";
     if (s.funds <= 5) return "我建议你现在不要打开账本。真的。";
     if (s.load >= 65) return "满天的出手点在漂。你最好不要用“手感”解释所有问题。";
     if (s.record < 40 || s.morale < 35) return "下一场不是靠漂亮配球就能解决。峡光自己也得像支球队。";
     return pickLine([
       "莫道集团给钱很快，收东西的时候也很快。",
-      "你不是不懂风险。你只是经常觉得自己能把风险接住。",
+      "你很懂风险。麻烦在于，你经常觉得自己能把风险接住。",
       "别用小破队当借口。破和不改是两件事。",
       "满天不是普通投手。你最好记得这句话的前半句和后半句。",
     ]);
   }
 
-  if (s.morale <= 20) return "钟哥，大家不是不想赢，就是有点……不知道该靠谁赢。";
+  if (state.screen === "ending" && f.firstSeasonContinue) return "钟哥，下一季我们是不是还算一支队？我这次想先问清楚。";
+  if (state.screen === "ending" && f.playoffCollapseSeen) return "没人敢收满天的柜子。就先那样放着吧。";
+  if (f.playoffCollapseSeen) return "刚才大家都吓到了。三棒说他下次能多扑一个球，虽然他说得很小声。";
+  if (f.yewNightWarningSeen) return "紫阳姐刚才脸色不太好。她高兴的时候都这么吓人吗？";
+  if (f.playoffCelebrationSeen) return "满天刚才问庆功宴是不是训练项目。我们说是，练习开心。";
+  if (f.mosasaurTapeNightSeen) return "钟哥，你看沧龙录像看到半夜，是不是又想把谁拆成格子？";
+  if (f.firstMediaSeen) return "今天记者好多。满天说完那句以后，三棒差点把水喷出来。";
+  if (f.translationGroupSeen) return "翻译小组今日成果：满天说我脚吵，意思是启动太早。大概吧。";
+  if (f.gloveAliveSeen) return "昨晚你们加练以后，牛棚的球印密得像有人拿针扎过。";
+  if (s.morale <= 20) return "钟哥，大家想赢，就是有点……不知道该靠谁赢。";
   if (s.record < 35) return "下一场对面不会因为咱们球场破就手下留情吧？";
   if (s.funds <= 8) return "我刚才看见紫阳姐在算车费。客场不会要我们自己骑车去吧。";
   return pickLine([
@@ -684,6 +723,13 @@ function renderEvent() {
   if (state.phase === "mt-cooking") return renderMTCookingEvent();
   if (state.phase === "mosasaur-game") return renderMosasaurGameEvent();
   if (state.phase === "mosasaur-after-game") return renderMosasaurAfterGameEvent();
+  if (state.phase === "glove-alive") return renderGloveAliveEvent();
+  if (state.phase === "translation-group") return renderTranslationGroupEvent();
+  if (state.phase === "first-media") return renderFirstMediaEvent();
+  if (state.phase === "mosasaur-tape-night") return renderMosasaurTapeNightEvent();
+  if (state.phase === "playoff-celebration") return renderPlayoffCelebrationEvent();
+  if (state.phase === "yew-night-warning") return renderYewNightWarningEvent();
+  if (state.phase === "playoff-collapse") return renderPlayoffCollapseEvent();
   if (state.phase === "sync-warm-body") return renderSyncWarmBodyEvent();
   if (state.phase === "sync-spare-parts") return renderSyncSparePartsEvent();
   if (state.phase === "sync-can-still-pitch") return renderSyncCanStillPitchEvent();
@@ -721,7 +767,62 @@ function goToFinalOrWarning() {
     state.phase = "yew-warning";
     return;
   }
+  goToGloveAlive();
+}
+
+function goToGloveAlive() {
+  if (!state.flags.gloveAliveSeen) {
+    state.screen = "event";
+    state.phase = "glove-alive";
+    return;
+  }
+  goToTranslationGroup();
+}
+
+function goToTranslationGroup() {
+  if (!state.flags.translationGroupSeen) {
+    state.screen = "event";
+    state.phase = "translation-group";
+    return;
+  }
+  goToFirstMedia();
+}
+
+function goToFirstMedia() {
+  if (!state.flags.firstMediaSeen) {
+    state.screen = "event";
+    state.phase = "first-media";
+    return;
+  }
+  goToMosasaurTapeNight();
+}
+
+function goToMosasaurTapeNight() {
+  const canWatchTape = state.flags.watchedMosasaurGame || state.flags.boughtMosasaurFootage || state.flags.mosasaurConversationSeen;
+  if (canWatchTape && !state.flags.mosasaurTapeNightSeen) {
+    state.screen = "event";
+    state.phase = "mosasaur-tape-night";
+    return;
+  }
   openLeagueIntro("final");
+}
+
+function goToPlayoffCelebration() {
+  if (!state.flags.playoffCelebrationSeen) {
+    state.screen = "event";
+    state.phase = "playoff-celebration";
+    return;
+  }
+  goToYewNightWarning();
+}
+
+function goToYewNightWarning() {
+  if (!state.flags.yewNightWarningSeen) {
+    state.screen = "event";
+    state.phase = "yew-night-warning";
+    return;
+  }
+  openLeagueIntro("playoff");
 }
 
 function goToYewImprovement() {
@@ -933,7 +1034,7 @@ function renderYewWarningEvent() {
       },
       {
         label: "要求更多数据",
-        desc: "你不是不信她。你只是想亲自确认。",
+        desc: "你相信她，也想亲自确认。",
         delta: { load: -3, morale: -2, sync: 1 },
         flags: ["yewFirstLoadWarningSeen", "rayRequestedMoreLoadData", "yewDataBackup"],
         result: "紫阳盯着你看了三秒，还是把更详细的数据传给了你。你们在休息区吵了二十分钟，旁边队员一句都听不懂。",
@@ -1109,7 +1210,7 @@ function renderEmptyFieldEvent() {
       },
       {
         label: "让他自己决定投什么",
-        desc: "不是训练菜单，不是比赛预案。只是他想投什么。",
+        desc: "不按训练菜单，也不按比赛预案。只看他想投什么。",
         delta: { self: 8, sync: 6, load: 5 },
         flags: ["emptyFieldCatchSeen", "mtChoseEmptyFieldPitch"],
         result: "满天站在投手丘上想了很久。最后他投了一颗直球。它不快，也不锋利，但你接住的时候，手套里有一种非常陌生的重量。",
@@ -1389,6 +1490,591 @@ function renderMosasaurAfterGameEvent() {
   );
 }
 
+function renderGloveAliveEvent() {
+  choiceEvent(
+    "日常：手套活过来了",
+    `满天首次正式登板之后，你们留在旧球场加练。
+
+海风从外野灌进来，坏掉的灯一闪一闪。满天站在投手丘上，手里转着球，眼睛一直看着你的手套。
+
+“它今天很亮。”他说。
+
+你问他说的是灯，还是球。
+
+满天摇头：“是你的手套。它有方向，会把球叫过去。”
+
+你蹲回本垒后方。脑子里那些过去只能写在报告里的配球，一条一条亮起来。`,
+    [
+      {
+        label: "测一组复杂球路",
+        desc: "你想看这只手套和这只手能走到哪里。",
+        delta: { record: 8, sync: 8, load: 18, self: -2 },
+        flags: ["gloveAliveSeen", "rayTestedComplexMix"],
+        result: "你比出第一个暗号。满天投了进来。第二个，第三个，第四个。球路像被你从脑子里直接拽进现实。满天的眼睛越来越亮，你的手套也越来越热。停下来的时候，你们谁都没有先说话。",
+        next: goToTranslationGroup,
+      },
+      {
+        label: "只练基础控球",
+        desc: "先确认直球、落点和节奏。",
+        delta: { sync: 5, load: 7, self: 5, record: 3 },
+        flags: ["gloveAliveSeen", "rayKeptBasicWork"],
+        result: "你只给基础暗号。满天一开始有点困惑，但每颗直球都稳稳落进手套。最后他问：“只投这个，你也会接吗？”你说会。他低头看球缝，像把这句话放进了什么地方。",
+        next: goToTranslationGroup,
+      },
+      {
+        label: "问满天看见了什么",
+        desc: "你不急着继续，只想知道他怎么读你的手套。",
+        delta: { sync: 6, self: 6, morale: -2 },
+        flags: ["gloveAliveSeen", "rayAskedMTPerception"],
+        result: "满天想了很久，说你的手套里面有路。那条路没有画出来，球自己想往那里去。你听着他说，第一次觉得自己的配球也可以被别人从身体里读出来。",
+        next: goToTranslationGroup,
+      },
+      {
+        label: "结束训练，让他休息",
+        desc: "今晚到这里。越亮的东西越该及时关灯。",
+        delta: { load: -6, sync: 3, record: -2, self: 2 },
+        flags: ["gloveAliveSeen", "rayStoppedExtraWork"],
+        result: "你收起手套。满天站在投手丘上看了你一会儿，问：“手套睡觉以后，球会去哪里？”你说，明天再来。他点点头，像接受了一条很难但可以执行的规则。",
+        next: goToTranslationGroup,
+      },
+    ],
+    "日常"
+  );
+}
+
+function renderTranslationGroupEvent() {
+  choiceEvent(
+    "日常：满天翻译小组",
+    `满天在训练里又说了几句很准也很刺的话。
+
+三棒本来要发火，旁边队员突然举手：“等一下，他的意思是不是我启动太慢？”
+
+另一个队员接上：“那句肩膀想逃跑，是说你怕内角球。”
+
+休息区安静了一瞬。
+
+满天看着他们，眼睛亮起来：“你们听懂了？”
+
+三棒骂了一句，但这次没人真的生气。有人甚至拿了白板，在上面写：满天翻译小组。`,
+    [
+      {
+        label: "让队员自己磨合",
+        desc: "这件事不必由你替他们完成。",
+        delta: { morale: 12, self: 5, sync: 2 },
+        flags: ["translationGroupSeen", "teamTranslationGroupStarted"],
+        result: "你没有插手。队员们吵吵嚷嚷地给满天的话做注释，满天很认真地纠正他们。休息区第一次因为他变得热闹，而且不是因为误会。",
+        next: goToFirstMedia,
+      },
+      {
+        label: "钟锐替满天翻译",
+        desc: "你知道他想表达什么，也知道队友哪里会听错。",
+        delta: { sync: 5, morale: 6, self: -2 },
+        flags: ["translationGroupSeen", "rayTranslatedForMT"],
+        result: "你把满天的观察一句句翻成人话。队员们听懂了，也服气了。满天坐在你旁边，认真观察你的嘴，像在学习一种新的暗号。",
+        next: goToFirstMedia,
+      },
+      {
+        label: "让满天教他们看身体",
+        desc: "既然他看得准，就让这件事变成训练。",
+        delta: { morale: 12, record: 6, load: 5, self: 4 },
+        flags: ["translationGroupSeen", "mtTaughtBodyReading"],
+        result: "满天站到白板前，认真讲每个人的脚、肩膀和呼吸。队员们一开始想笑，后来笑不出来了。因为他说得太准。峡光像突然多了一种奇怪又有用的训练课。",
+        next: goToFirstMedia,
+      },
+      {
+        label: "叫满天少刺激队友",
+        desc: "他们刚刚开始接受他，你不想再出乱子。",
+        delta: { morale: 3, self: -8, sync: -3 },
+        flags: ["translationGroupSeen", "rayToldMTToHoldBack"],
+        result: "满天很快点头。之后的训练里，他看见了很多东西，却只把球递回给你。队员们轻松了一点，但你发现他的眼睛没有刚才那么亮了。",
+        next: goToFirstMedia,
+      },
+    ],
+    "日常"
+  );
+}
+
+function renderFirstMediaEvent() {
+  choiceEvent(
+    "日常：新闻发布会第一次失控",
+    `峡光连赢之后，第一次有这么多记者堵在休息区外。
+
+你和紫阳坐在桌前。满天坐在你旁边，低头研究话筒，像在判断它会不会接球。
+
+记者问：“满天选手，你怎么评价钟锐捕手？”
+
+紫阳的手指在桌下轻轻敲了一下，像预感到什么。
+
+满天抬头，很认真地说：“他接球的时候，手套里面有我想去的地方。”
+
+房间里安静了一瞬。闪光灯随后亮成一片。`,
+    [
+      {
+        label: "官方回答：满天是峡光的王牌",
+        desc: "把这句话收回球队的公共叙事里。",
+        delta: { funds: 8, morale: 6, sync: -2 },
+        flags: ["firstMediaSeen", "rayCalledMTTeamAce"],
+        result: "你接过话，说满天是峡光的王牌，也是全队努力的一部分。队员们在后台听见这句，第二天训练时比平时吵了很多。满天看了你一眼，像在思考王牌和搭档哪个更靠近手套。",
+        next: goToMosasaurTapeNight,
+      },
+      {
+        label: "顺着满天说：他是我的投手",
+        desc: "你把那句危险的话说得更明确。",
+        delta: { sync: 10, morale: -4, load: 3 },
+        flags: ["firstMediaSeen", "rayCalledMTMyPitcher"],
+        result: "你说他是你的投手。满天立刻转头看你，眼睛亮得比闪光灯更直接。紫阳在旁边闭了一下眼。第二天，媒体标题比比赛本身还热闹。",
+        next: goToMosasaurTapeNight,
+      },
+      {
+        label: "让紫阳接管采访",
+        desc: "这局让专业发言人来守。",
+        delta: { funds: 10, load: -2 },
+        flags: ["firstMediaSeen", "yewHandledMedia", "yewTrustHigh"],
+        result: "紫阳接过话筒，用一串训练负荷、投球效率和队伍协同把记者淹没。满天听得很认真，最后小声问你：“她是在保护我，还是保护话筒？”",
+        next: goToMosasaurTapeNight,
+      },
+      {
+        label: "直接带满天离开",
+        desc: "今天到这里。你不想让他继续被问下去。",
+        delta: { sync: 5, funds: -3, morale: -2 },
+        flags: ["firstMediaSeen", "rayLeftMediaWithMT"],
+        result: "你带满天离开发布会。走廊里安静下来以后，满天问：“刚才不能说吗？”你说不是不能。只是有些话说出去以后，会被很多人拿走。",
+        next: goToMosasaurTapeNight,
+      },
+    ],
+    "媒体"
+  );
+}
+
+function renderMosasaurTapeNightEvent() {
+  choiceEvent(
+    "日常：沧龙录像夜",
+    `晚上，你打开了沧龙队的比赛录像。
+
+江陵和白城的配合被暂停在屏幕上。一个刚刚出手，一个已经移动到接球位置。
+
+满天坐在你旁边，盯着画面看了很久。
+
+“他们吵得好开心。”他说，“是因为他们知道对方不会走吗？”
+
+你看着屏幕里那对前队友。江陵的动作很吵，白城的判断很稳。两个人像在互相扩大对方能到达的地方。`,
+    [
+      {
+        label: "认真分析江陵白城",
+        desc: "把这场录像拆成下一场能用的东西。",
+        delta: { record: 7, sync: 2 },
+        flags: ["mosasaurTapeNightSeen", "rayStudiedMosasaursPair"],
+        result: "你把江陵和白城的配合拆给满天看。满天听到一半，忽然说：“他们不是一个身体，但会把地方让给对方。”你停了一下，把这句话写进了笔记。",
+        next: () => openLeagueIntro("final"),
+      },
+      {
+        label: "和满天讨论搭档",
+        desc: "今晚不只看棒球，也看人和人的距离。",
+        delta: { self: 7, sync: 6 },
+        flags: ["mosasaurTapeNightSeen", "rayDiscussedPartnership"],
+        result: "你问满天觉得搭档是什么。满天想了很久，说：“也许是我摇头的时候，你还在本垒后方。”电视光落在他脸上，你没有立刻说话。",
+        next: () => openLeagueIntro("final"),
+      },
+      {
+        label: "酸沧龙几句",
+        desc: "他们确实强，但你不想承认得太轻松。",
+        delta: { sync: 4, self: -2 },
+        flags: ["mosasaurTapeNightSeen", "rayWasSourAboutMosasaurs"],
+        result: "你挑了几处沧龙的毛病。满天听得很认真，最后问：“你说他们烦的时候，身体比较高兴。”你把录像往后拖了十秒，决定不回答这个问题。",
+        next: () => openLeagueIntro("final"),
+      },
+      {
+        label: "关掉录像去做饭",
+        desc: "今晚不再看对手。你们也需要自己的晚上。",
+        delta: { load: -6, sync: 5, funds: -2 },
+        flags: ["mosasaurTapeNightSeen", "rayChoseHomeOverTape"],
+        result: "你关掉录像，去厨房开火。满天跟过来，问今天的饭会不会也有配合。你说会。他立刻站到旁边，认真等你分配一个他能完成的位置。",
+        next: () => openLeagueIntro("final"),
+      },
+    ],
+    "沧龙录像"
+  );
+}
+
+function renderPlayoffCelebrationEvent() {
+  choiceEvent(
+    "日常：庆功宴",
+    `峡光进入季后赛。
+
+这个事实比比分更不真实。旧球场旁边的小店被队员们挤满，三棒举着饮料喊到破音，替补投手把手机递给每个人看媒体标题。
+
+满天坐在桌边，被队员们轮流投喂。他认真听每个人说话，偶尔冒出一句精准到过分的评价，大家已经学会先笑再翻译。
+
+紫阳坐在角落看数据板。她的眉头还是皱着，但你看见她嘴角往上抬了一下。
+
+这支小破队今晚真的像一支球队。`,
+    [
+      {
+        label: "陪队员闹到很晚",
+        desc: "今晚让峡光像一支会庆祝的队伍。",
+        cost: 6,
+        delta: { morale: 14, sync: -2 },
+        flags: ["playoffCelebrationSeen", "teamCelebratedLate"],
+        result: "你陪他们闹到很晚。满天被队员们拉着学庆祝手势，动作很认真，表情很空，反而让所有人笑得更厉害。峡光从来没有这么吵过。",
+        next: goToYewNightWarning,
+      },
+      {
+        label: "坐在满天旁边看他吃东西",
+        desc: "他今晚也应该知道自己在庆祝里。",
+        delta: { sync: 7, self: 6, morale: 4, load: 3 },
+        flags: ["playoffCelebrationSeen", "raySatWithMTAtParty"],
+        result: "你坐到满天旁边。他把一块甜点推给你，说：“这个味道跑得比我慢，但很高兴。”队员们在旁边起哄，满天问他们为什么声音变高。你没有解释。",
+        next: goToYewNightWarning,
+      },
+      {
+        label: "和紫阳聊数据",
+        desc: "快乐是真的，数据也是真的。",
+        delta: { load: -4, morale: -2, self: 2 },
+        flags: ["playoffCelebrationSeen", "rayCheckedDataAtParty", "yewTrustHigh"],
+        result: "你坐到紫阳旁边。她把数据板转给你看，曲线漂亮得像胜利，也危险得像警报。紫阳低声说：“我也高兴。但你别被高兴骗了。”",
+        next: goToYewNightWarning,
+      },
+      {
+        label: "站起来说季后赛也要赢",
+        desc: "你把今晚的热度继续推向下一场。",
+        delta: { morale: 12, sync: 4, load: 8 },
+        flags: ["playoffCelebrationSeen", "rayPromisedPlayoffWin"],
+        result: "你站起来，说季后赛也要赢。队员们用力鼓掌，满天看着你，像看见本垒后方又亮起一盏灯。紫阳没有鼓掌，但她也没有阻止你。",
+        next: goToYewNightWarning,
+      },
+    ],
+    "庆功宴"
+  );
+}
+
+function renderYewNightWarningEvent() {
+  choiceEvent(
+    "夜间：紫阳的警告",
+    `庆功宴散场以后，紫阳把你叫到旧球场边。
+
+海风很冷。远处的小店还亮着灯，队员们的笑声断断续续传过来。
+
+紫阳把数据板递给你。
+
+“他今天的数据非常漂亮。”她说。
+
+她停了一下。
+
+“漂亮到不正常。”
+
+你看见满天站在不远处，正低头研究队员送给他的纸帽。那顶帽子歪得很厉害，他看起来很开心。`,
+    [
+      {
+        label: "答应季后赛控制强度",
+        desc: "你承认这件事不能只靠手套判断。",
+        delta: { load: -6, record: -3 },
+        flags: ["yewNightWarningSeen", "rayPromisedYewToLimitMT", "yewTrustHigh"],
+        result: "你说季后赛会控制强度。紫阳看了你很久，像在判断你这句话有几分能落到球场上。最后她收起数据板，说：“记住你现在还会说这句话。”",
+        next: () => openLeagueIntro("playoff"),
+      },
+      {
+        label: "说现在不能停",
+        desc: "峡光终于飞起来了，你不想在这里踩刹车。",
+        delta: { record: 5, load: 8, sync: 3 },
+        flags: ["yewNightWarningSeen", "rayRefusedToSlowDown"],
+        result: "你说现在不能停。紫阳笑了一下，冷得让人不舒服。“我知道。”她说，“所以我才在这里提醒你。”远处满天抬头看过来，像听见了自己的名字。",
+        next: () => openLeagueIntro("playoff"),
+      },
+      {
+        label: "问有没有维护方案",
+        desc: "如果一定要继续，你至少要知道能不能接住代价。",
+        cost: 8,
+        delta: { load: -8 },
+        flags: ["yewNightWarningSeen", "rayAskedForMaintenancePlan", "yewTrustHigh"],
+        result: "你问紫阳有没有维护方案。她说有，但没有哪一种能让你们无限使用他。你们在夜风里把资金、检查、恢复和轮休排了一遍。每一项都像一条太细的绳。",
+        next: () => openLeagueIntro("playoff"),
+      },
+      {
+        label: "沉默看满天",
+        desc: "他现在很开心。你一时不知道该说什么。",
+        delta: { sync: 5, self: -2, load: 3 },
+        flags: ["yewNightWarningSeen", "raySilentAfterWarning"],
+        result: "你没有回答。满天把纸帽扶正，又很快弄歪。紫阳顺着你的视线看过去，声音低下来：“我知道你喜欢他这样。但这样也会烧起来。”",
+        next: () => openLeagueIntro("playoff"),
+      },
+    ],
+    "夜间警告"
+  );
+}
+
+function playoffResultText() {
+  if (state.flags.playoffFirstGameWon) {
+    return `峡光赢下了队史第一场季后赛。
+
+但满天没有再正常站上下一场比赛的投手丘。第二场，峡光输得很安静。`;
+  }
+  return `峡光输掉了队史第一场季后赛。
+
+比分停在记分板上，可投手丘上的满天让所有人沉默。`;
+}
+
+function controlFlagCount() {
+  return [
+    "rayDecidedForMTBody",
+    "rayDecidedForMTBodySnack",
+    "rayTestedMTBodyLimit",
+    "rayTrustedGloveOverData",
+    "rayRefusedMTCare",
+    "rayAskedMorePitchesForComfort",
+    "rayShowedMTPower",
+    "rayOverusedMTForWin",
+    "rayTranslatedForMT",
+    "rayControlledPlayoffOpening",
+    "rayPushedThroughWarning",
+    "rayRefusedToSlowDown",
+    "rayToldMTToHoldBack",
+  ].filter((flag) => state.flags[flag]).length;
+}
+
+function teamSupportScore() {
+  return [
+    "teamTranslationGroupStarted",
+    "mtTaughtBodyReading",
+    "teamSharedTheWin",
+    "teamCarriedPlayoffSpot",
+    "teamTriedToCatchCollapse",
+    "playoffTeamSettledIn",
+    "teamCelebratedLate",
+  ].filter((flag) => state.flags[flag]).length;
+}
+
+function publicSupportScore() {
+  return [
+    "watchedMosasaurGame",
+    "mosasaurConversationSeen",
+    "rayCalledMTTeamAce",
+    "rayCalledMTMyPitcher",
+    "yewHandledMedia",
+    "rayAskedBaiChengAboutPitcher",
+    "lingChengLineOpened",
+    "mosasaurTapeNightSeen",
+    "rayStudiedMosasaursPair",
+    "rayDiscussedPartnership",
+    "yewTrustHigh",
+    "rayAskedForMaintenancePlan",
+  ].filter((flag) => state.flags[flag]).length;
+}
+
+function finishFirstSeason(decision) {
+  const { record, morale, sync, load, self } = state.stats;
+  const control = controlFlagCount();
+  const team = teamSupportScore();
+  const publicScore = publicSupportScore();
+  const base = playoffResultText();
+
+  state.flags.firstSeasonContinue = false;
+
+  if (decision === "continue" && load >= 80) {
+    state.endingOverride = {
+      title: "Bad End：燃尽的手套",
+      text: `${base}
+
+你让满天继续投。
+
+那颗球极漂亮，漂亮到全场都忘了它来自一具已经撑不住的身体。
+
+球落进你的手套时，满天的手没有再稳稳垂下去。
+
+你接住过他最好的球。然后你亲手把那只手用到了尽头。`,
+    };
+  } else if ((record < 45 || morale < 30) && team < 1 && publicScore < 1) {
+    state.endingOverride = {
+      title: "Bad End：消失的王牌",
+      text: `${base}
+
+季后赛之后，莫道集团重新评估满天的项目。
+
+峡光没有足够的成绩，队伍没有足够的承接，外界也没有足够多的人真正看见他。
+
+手续来得很快。第二天，满天没有出现在训练场。
+
+他的储物柜被清空，投手丘上没有脚印。`,
+    };
+  } else if (load >= 82 && self <= 35 && sync <= 35) {
+    state.endingOverride = {
+      title: "Bad End：空掉的投手丘",
+      text: `${base}
+
+满天的身体和精神都在季后赛里崩溃。
+
+医生说他不能再投球。紫阳没有反驳。你也没有。
+
+你不知道该怎么回应一个不能再投球、也无法再相信自己会被需要的满天。
+
+过了一段时间，他从你身边突然消失。没有告别，也没有留下球。`,
+    };
+  } else if (control >= 4 && self < 50) {
+    state.endingOverride = {
+      title: "Bad End：钟锐的独裁比赛",
+      text: `${base}
+
+满天消失了一阵子，又回到了峡光。
+
+他还站在你身边，也还会听暗号。
+
+可他再也投不出之前那样的球。
+
+峡光成了你手里更精密的棋盘，满天成了其中一枚普通棋子。`,
+    };
+  } else if (sync >= 50 && morale < 40) {
+    state.endingOverride = {
+      title: "Normal End：只剩投捕",
+      text: `${base}
+
+满天留在你身边。你们之间的暗号仍然存在，甚至比之前更紧。
+
+可峡光队没有真正接住这件事。队员们站在稍远的地方，安静地把训练器材收好。
+
+你和满天还可以互相看见。只是所有压力仍会回到你们两个人身上。`,
+    };
+  } else if (load < 75 && self < 45 && (decision === "bench" || decision === "yew")) {
+    state.endingOverride = {
+      title: "Normal End：被保护的王牌",
+      text: `${base}
+
+你保住了满天的身体。
+
+检查、恢复、轮休，每一项都被安排得很仔细。满天也很配合，像配合一份新的训练表。
+
+只是他偶尔会看向投手丘，问今天是不是也没有他的名字。
+
+你守住了身体，没有守住那个想继续投球的人。`,
+    };
+  } else if (record >= 60 && morale >= 55 && (sync < 45 || self < 45)) {
+    state.endingOverride = {
+      title: "Normal End：小破队的季后赛",
+      text: `${base}
+
+峡光创造了队史最好的赛季。
+
+队员们第一次相信，这支队伍真的可以从烂泥里打上来。
+
+但满天的崩溃让故事停在这里。峡光还会往前走，只是投手丘上不会再有那个能把你的暗号全部点亮的人。`,
+    };
+  } else if (load < 82 && self >= 50 && sync >= 45 && (decision === "mound" || state.flags.playoffBasicMixUsed || state.flags.rayKeptBasicWork)) {
+    state.flags.firstSeasonContinue = true;
+    state.endingOverride = {
+      title: "Continue：第一颗直球",
+      text: `${base}
+
+满天暂时不能再使用复杂球种。
+
+你蹲回本垒后方，比出直球暗号。满天看了很久，最后点头。
+
+这颗球很轻，也不锋利，却稳稳落进你的手套。
+
+第二季，将从这颗直球开始。`,
+    };
+  } else if (load < 88 && morale >= 55 && team >= 2 && (decision === "yew" || decision === "bench")) {
+    state.flags.firstSeasonContinue = true;
+    state.endingOverride = {
+      title: "Continue：峡光仍在",
+      text: `${base}
+
+满天倒下的时候，峡光没有散。
+
+队员们第一次没有等你一个人解决所有事。有人去叫紫阳，有人守住休息区，有人把记者挡在外面。
+
+这支小破队还很破，但它终于能接住一点重量。
+
+第二季，峡光必须学会一起保护自己的王牌。`,
+    };
+  } else if (load < 88 && record >= 60 && morale >= 50 && publicScore >= 2 && self >= 45) {
+    state.flags.firstSeasonContinue = true;
+    state.endingOverride = {
+      title: "Continue：无法被消失的人",
+      text: `${base}
+
+季后赛之后，关于满天的名字没有安静下去。
+
+队友、球迷、媒体、对手，都已经看见过那个站在投手丘上的人。
+
+莫道可以带走一个项目样本，却很难让一个被这么多人记住的投手无声消失。
+
+第二季，你们要把这件事变成真正的自由。`,
+    };
+  } else {
+    state.endingOverride = {
+      title: "Normal End：未完成的第一季",
+      text: `${base}
+
+满天活了下来，峡光也没有立刻散掉。
+
+但你们还没有找到足够清楚的答案。身体、球队、自由、暗号，每一样都悬在半空。
+
+这个赛季停在这里。下一次，你需要更早决定要让谁来接住这场比赛。`,
+    };
+  }
+
+  state.screen = "ending";
+}
+
+function renderPlayoffCollapseEvent() {
+  const highLoad = state.stats.load >= 75;
+  state.collapseLevel = state.stats.load >= 90
+    ? "disaster"
+    : state.stats.load >= 78 || state.stats.self <= 25
+      ? "heavy"
+      : state.stats.load >= 60
+        ? "medium"
+        : "light";
+
+  choiceEvent(
+    "季后赛：满天崩溃",
+    `满天站在投手丘上，手里的球没有立刻投出去。
+
+他低头看自己的手，像那只手突然变成了需要重新读懂的东西。
+
+全场还在喊，队友还在等，比分还挂在记分板上。
+
+满天抬头看你，第一句话还是：“我还能投。”
+
+紫阳已经从休息区站了起来。
+
+你知道，崩溃已经发生。现在的问题只剩下，谁来接住它。${highLoad ? "\n\n他的脸色白得很快，连灯光都压不住。" : ""}`,
+    [
+      {
+        label: "立刻换下满天",
+        desc: "先让身体停下来。之后的解释，之后再说。",
+        delta: { load: -12, self: -4, sync: -2, morale: 2 },
+        flags: ["playoffCollapseBenchedMT", "rayDecidedForMTBody"],
+        result: "你叫停比赛，换下满天。满天没有反抗，只是一直看着你的手套。下场经过你身边时，他问得很轻：“刚才那颗，也不能投了吗？”",
+        next: () => finishFirstSeason("bench"),
+      },
+      {
+        label: "走上投手丘问他",
+        desc: "你先确认他想投，还是只是不敢停。",
+        delta: { sync: 6, self: 8, load: -4 },
+        flags: ["playoffCollapseAskedMT", "mtAskedOnMound"],
+        result: "你走上投手丘，挡住一部分灯光。你问他现在想怎么做。满天张了张嘴，第一次没有立刻说还能投。他看着自己的手，又看向你的手套。",
+        next: () => finishFirstSeason("mound"),
+      },
+      {
+        label: "继续让他投一球",
+        desc: "也许只差这一颗。也许这一颗会决定一切。",
+        delta: { load: 25, sync: 5, self: -8 },
+        flags: ["playoffCollapsePushedOneMore", "rayOverusedMTForWin"],
+        result: "你给出暗号。满天像终于找回规则一样点头。那颗球投出来的时候，所有人都看见了它的漂亮，也看见了漂亮之后突然断掉的动作。",
+        next: () => finishFirstSeason("continue"),
+      },
+      {
+        label: "叫紫阳上来",
+        desc: "你让出一部分控制，把判断交给能处理身体的人。",
+        delta: { load: -10, self: 3, sync: -1, morale: 3 },
+        flags: ["playoffCollapseCalledYew", "yewTrustHigh"],
+        result: "你叫紫阳上来。她没有问你为什么终于肯叫她，只是伸手扶住满天的手腕。满天看着你，像在确认这是不是你的暗号。你点头。",
+        next: () => finishFirstSeason("yew"),
+      },
+    ],
+    "季后赛崩溃"
+  );
+}
+
 function renderSyncWarmBodyEvent() {
   choiceEvent(
     "隐藏事件：体温不稳定",
@@ -1464,7 +2150,7 @@ function renderSyncSparePartsEvent() {
       },
       {
         label: "花钱给他做一次额外检查",
-        desc: "不是比赛前的检测，是单独为他确认身体。",
+        desc: "这次检测不服务比赛，只单独确认他的身体。",
         cost: 6,
         costFailDelta: { sync: -4, self: -2 },
         delta: { sync: 4, load: -8, self: 3 },
@@ -1728,6 +2414,12 @@ function renderGame() {
     renderFinalOffense();
   } else if (state.phase === "final-defense") {
     renderFinalDefense();
+  } else if (state.phase === "playoff-opening") {
+    renderPlayoffOpening();
+  } else if (state.phase === "playoff-pitching") {
+    renderPlayoffPitching();
+  } else if (state.phase === "playoff-pressure") {
+    renderPlayoffPressure();
   } else {
     renderFinalGame();
   }
@@ -1753,11 +2445,15 @@ function renderLeagueIntro() {
   const matchNames = {
     first: "没有满天的联赛",
     "mt-debut": "满天首次正式登板",
-    final: "关键联赛",
+    final: "黑马推进战",
+    playoff: "季后赛第一场",
   };
   const matchName = matchNames[state.currentMatchType] || "关键联赛";
+  const heading = state.currentMatchType === "playoff"
+    ? "独立联盟季后赛 第一场"
+    : `独立联盟联赛 第 ${state.leagueMatchNo} 场`;
   shell("联赛日", `
-    <h2 class="screen-title">独立联盟联赛 第 ${state.leagueMatchNo} 场</h2>
+    <h2 class="screen-title">${heading}</h2>
     <div class="prose">峡光队 vs ${state.currentOpponent}
 
 ${matchName}
@@ -1777,6 +2473,10 @@ ${matchName}
     } else if (state.currentMatchType === "mt-debut") {
       state.screen = "game";
       state.phase = "mt-debut-game";
+    } else if (state.currentMatchType === "playoff") {
+      state.playoffScore = 0;
+      state.screen = "game";
+      state.phase = "playoff-opening";
     } else if (!canEnterLeagueMatch()) {
       state.crisisReturnPhase = "final-offense";
       state.screen = "event";
@@ -2051,18 +2751,164 @@ function resolveFinalGame(choice) {
   outcomeScreen("赛中结果", state.log, () => {
     if (state.endingOverride) {
       state.screen = "ending";
-    } else if (choice === "bench") {
-      state.log = "";
-      state.screen = "event";
-      state.phase = "bench-question";
-    } else if ((choice === "ask" || choice === "soft") && state.stats.load < 85) {
-      state.log = "";
-      state.screen = "event";
-      state.phase = "empty-field";
     } else {
-      state.screen = "ending";
+      state.log = "峡光赢下了通往季后赛的关键一战。你们还没有真正抵达终点，但休息区里已经有人开始发抖。他们第一次发现自己真的能走到那里。";
+      goToPlayoffCelebration();
     }
-  }, "峡光关键战");
+  }, "峡光关键战", { clearLogBeforeNext: true });
+}
+
+function renderPlayoffOpening() {
+  shell("季后赛：前半局布局", `
+    <h2 class="screen-title">第一次站上季后赛</h2>
+    <div class="prose">季后赛球场比旧球场亮太多。
+
+峡光队的队员换好衣服，坐在休息区里，像一群突然被推到大舞台上的人。满天站在通道口，看着场内的灯，眼睛很亮。
+
+紫阳的数据板从赛前开始就没有离手。
+
+第一局要怎么打，决定这支小破队会用什么姿态进入季后赛。</div>
+    <div class="choices">
+      <button class="choice-btn" data-choice="steady"><strong>稳妥防守，让队友先进入节奏</strong><span>先让峡光稳下来，不急着把比赛交给满天。</span></button>
+      <button class="choice-btn" data-choice="attack"><strong>主动抢分，打出黑马气势</strong><span>把季后赛当成你们一路打上来的延续。</span></button>
+      <button class="choice-btn" data-choice="ray"><strong>交给钟锐拆对手弱点</strong><span>你用最熟悉的方式，把比赛先收进手里。</span></button>
+    </div>
+  `, { weekText: "季后赛第一场" });
+
+  app.querySelectorAll("[data-choice]").forEach((button) => {
+    button.addEventListener("click", () => resolvePlayoffOpening(button.dataset.choice));
+  });
+}
+
+function resolvePlayoffOpening(choice) {
+  if (choice === "steady") {
+    changeStats({ morale: 7, load: 3 });
+    state.playoffScore += state.stats.morale >= 45 ? 2 : 1;
+    addFlag("playoffTeamSettledIn");
+    state.log = "你让队友先稳住防守。第一颗球落地时，二垒手的动作慢了半拍，但他接住了。第二次，他提前到了位置。峡光没有立刻发光，却先站稳了。";
+  } else if (choice === "attack") {
+    changeStats({ record: 5, morale: 5, load: 5 });
+    state.playoffScore += state.stats.record >= 55 ? 2 : 0;
+    addFlag("playoffRaysAttackedFirst");
+    state.log = "你让峡光主动抢分。短打、盗垒、牺牲推进，所有小动作在强光里显得又破又凶。对手一开始没把你们当回事，等他们反应过来，峡光已经踩上得分圈。";
+  } else {
+    changeStats({ record: 6, morale: -3, sync: 3, load: 4 });
+    state.playoffScore += state.stats.record >= 50 || state.flags.rayScoutOverTraining ? 2 : 1;
+    addFlag("rayControlledPlayoffOpening");
+    state.log = "你把对手前几局的出手习惯拆开，给出站位、配球和进攻顺序。队员们照做，比赛被你一点点收进掌心。休息区安静得很听话。";
+  }
+
+  outcomeScreen("赛中结果", state.log, () => {
+    state.screen = "game";
+    state.phase = "playoff-pitching";
+  }, "季后赛第一场", { clearLogBeforeNext: true });
+}
+
+function renderPlayoffPitching() {
+  shell("季后赛：满天登板", `
+    <h2 class="screen-title">满天走上投手丘</h2>
+    <div class="prose">中盘，对手开始适应峡光的节奏。
+
+满天拿着球走上投手丘。季后赛的灯落在他手上，像把球缝照得更深。
+
+他回头看你。
+
+你知道，只要现在给出复杂暗号，他能把这场比赛推到一个很漂亮的位置。你也知道，紫阳正在看数据板。</div>
+    <div class="choices">
+      <button class="choice-btn" data-choice="complex"><strong>复杂球路压制</strong><span>把对手最强打线直接按下去。</span></button>
+      <button class="choice-btn" data-choice="basic"><strong>用基础球种控局</strong><span>节奏、落点和直球也能杀人。</span></button>
+      <button class="choice-btn" data-choice="ask"><strong>问满天读到了什么</strong><span>让他用身体判断这局该怎么投。</span></button>
+    </div>
+  `, { weekText: "季后赛第一场" });
+
+  app.querySelectorAll("[data-choice]").forEach((button) => {
+    button.addEventListener("click", () => resolvePlayoffPitching(button.dataset.choice));
+  });
+}
+
+function resolvePlayoffPitching(choice) {
+  if (choice === "complex") {
+    changeStats({ record: 8, sync: 8, load: 22, self: -3 });
+    state.playoffScore += 2;
+    addFlag("playoffComplexMixUsed");
+    state.log = "你给出复杂暗号。满天投出的球一颗比一颗漂亮，对手打线像被细线勒住。全场开始安静，然后爆发。你听见自己的心跳，也听见紫阳合上数据板的声音。";
+  } else if (choice === "basic") {
+    changeStats({ record: 5, sync: 5, load: 10, self: 5 });
+    state.playoffScore += 1;
+    addFlag("playoffBasicMixUsed");
+    state.log = "你削掉复杂球种，只用基础球路控局。满天一开始看了你一眼，随后把直球投进每一个你给出的角落。它们没有那么华丽，却稳得让对手越来越烦躁。";
+  } else {
+    changeStats({ sync: 6, self: 7, load: 12 });
+    state.playoffScore += state.stats.self >= 45 ? 2 : 1;
+    addFlag("playoffMTReadBatter");
+    state.log = "你走到投手丘边，问满天看见了什么。满天盯着打者，说他的后脚想提前逃。你接受了他的判断。下一球，打者挥空，像被自己的身体骗了。";
+  }
+
+  outcomeScreen("赛中结果", state.log, () => {
+    state.screen = "game";
+    state.phase = "playoff-pressure";
+  }, "季后赛第一场", { clearLogBeforeNext: true });
+}
+
+function renderPlayoffPressure() {
+  shell("季后赛：关键局面", `
+    <h2 class="screen-title">第七局，二出局一三垒有人</h2>
+    <div class="prose">峡光还咬在比赛里。
+
+满天连续处理了几个打者。每颗球都漂亮到让人忘记呼吸。
+
+然后你看见了。
+
+他的手指松开球的时间慢了一瞬。只有一瞬。普通人看不见，数据板会看见，手套也会看见。
+
+对手最危险的打者站进打击区。现在必须决定，这局怎么过去。</div>
+    <div class="choices">
+      <button class="choice-btn" data-choice="push"><strong>继续压制</strong><span>相信满天和你的手套还能撑住。</span></button>
+      <button class="choice-btn" data-choice="team"><strong>让队友守下来</strong><span>把比赛交给整支峡光。</span></button>
+      <button class="choice-btn" data-choice="mound"><strong>上投手丘确认满天状态</strong><span>先看他，再看比赛。</span></button>
+      <button class="choice-btn" data-choice="yew"><strong>叫紫阳看数据</strong><span>让专业判断进入球场。</span></button>
+    </div>
+  `, { weekText: "季后赛第一场" });
+
+  app.querySelectorAll("[data-choice]").forEach((button) => {
+    button.addEventListener("click", () => resolvePlayoffPressure(button.dataset.choice));
+  });
+}
+
+function resolvePlayoffPressure(choice) {
+  if (choice === "push") {
+    changeStats({ record: 5, sync: 5, load: 22, self: -4 });
+    state.playoffScore += 1;
+    addFlag("rayPushedThroughWarning");
+    state.log = "你压下那一瞬间的不安，继续给出暗号。满天照着投。球漂亮得几乎残忍，打者挥空，全场沸腾。只有你知道，他的手指在回收动作里抖了一下。";
+  } else if (choice === "team") {
+    changeStats({ morale: 10, load: 8, record: 2 });
+    state.playoffScore += state.stats.morale >= 55 ? 2 : 0;
+    addFlag("teamTriedToCatchCollapse");
+    state.log = "你把守备向前推，让队友接住这一局。球被打进内野，三棒扑出去，膝盖擦过土，把球拦下来。满天站在投手丘上，看起来像第一次发现有人能替他挡住一点东西。";
+  } else if (choice === "mound") {
+    changeStats({ sync: 6, self: 6, load: 10 });
+    state.playoffScore += 1;
+    addFlag("rayCheckedMTOnMound");
+    state.log = "你走上投手丘。满天看着你，第一句话是：“我还能投。”你没有立刻回答，只看他的手。那只手还握着球，但已经握得太紧。";
+  } else {
+    changeStats({ load: 6, record: -2 });
+    state.playoffScore += state.flags.yewTrustHigh || state.flags.rayAskedForMaintenancePlan ? 1 : 0;
+    addFlag("yewCheckedMTInPlayoff");
+    addFlag("yewTrustHigh");
+    state.log = "你叫紫阳上来。她只看了一眼数据板，脸色就变了。满天站在你们中间，像忽然发现自己被两种暗号同时包围。";
+  }
+
+  const won = state.playoffScore >= 4 && state.stats.record >= 45 && state.stats.morale >= 35;
+  state.flags.playoffFirstGameWon = won;
+  state.flags.playoffCollapseSeen = true;
+  state.log = `${state.log}
+
+下一球还没有投出，满天的呼吸先乱了。`;
+  outcomeScreen("赛中结果", state.log, () => {
+    state.screen = "event";
+    state.phase = "playoff-collapse";
+  }, "季后赛第一场", { clearLogBeforeNext: true });
 }
 
 function renderResult() {
@@ -2084,84 +2930,13 @@ function renderResult() {
 function endingData() {
   if (state.endingOverride) return state.endingOverride;
 
-  const { record, morale, sync, load, self } = state.stats;
-  const choseCare = state.flags.mtAskedOnMound || state.flags.restedMT;
-
-  if (load > 85) {
-    return {
-      title: "Bad End：燃尽的手套",
-      text: `${state.log}
-
-最后一局，满天投出失控球。
-
-那颗球没有落进你的手套。
-
-你冲上投手丘时，他看着你，说自己还能投。但他的手指已经无法正确扣住球缝。
-
-你接住过他最好的球。然后你亲手把那只手用到了尽头。`,
-    };
-  }
-
-  if (load < 70 && self > 50 && sync > 35 && choseCare) {
-    return {
-      title: "Good End：第一颗直球",
-      text: `${state.log}
-
-比赛结束后，你和满天留在空球场。
-
-你蹲回本垒后方，比出快速球暗号。
-
-满天摇头。
-
-你停了一下。然后点头。
-
-他投出一颗并不最华丽、但完全出于自己意愿的直球。
-
-球落进你的手套。
-
-这颗球不是被你安排出来的。你接住了它。`,
-    };
-  }
-
-  if (record > 65 && sync > 45 && load < 85 && self < 50) {
-    return {
-      title: "Normal End：赢球机器",
-      text: `${state.log}
-
-峡光赢下比赛。媒体第一次认真写下这支球队的名字。
-
-满天站在你身边，等你告诉他下一场该怎么投。
-
-你终于有了能执行一切暗号的投手。
-
-问题是，他也只剩下暗号。`,
-    };
-  }
-
-  if (morale < 20 && sync > 40) {
-    return {
-      title: "Normal End：只剩投捕",
-      text: `${state.log}
-
-峡光没有彻底输掉这场比赛。
-
-但当你整理记录时，发现胜利几乎全部落在你和满天的连线上。队友们安静地收拾东西，没人打扰你们，也没人真正进入这盘棋。
-
-满天还在看你的手套。你知道他愿意继续投。
-
-问题是，峡光队越来越不像一支队伍。`,
-    };
-  }
-
   return {
-    title: "Normal End：未完成的配球",
-    text: `${state.log}
+    title: "归档结局：旧版流程",
+    text: `${state.log ? `${state.log}\n\n` : ""}这个存档停在旧版 Demo 的结局入口。
 
-峡光没有崩盘，也没有真正起飞。
+v0.7 之后，第一季结局会通过季后赛崩溃后的中期结局矩阵结算。
 
-满天还在你的手套前投球。你们之间有某种东西正在形成，但它还没有清楚到足以改变结局。
-
-下一次，你需要更早决定：你到底想接住的是球，还是人。`,
+如果你是从旧存档进入这里，可以从头开始体验新版第一季。`,
   };
 }
 
